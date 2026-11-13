@@ -146,7 +146,7 @@ function newPC(){
     $('#mv').play().catch(()=>{})};
   return pc;
 }
-const gather=()=>new Promise(r=>{if(pc.iceGatheringState==='complete')return r();const t=setTimeout(r,4000);pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete'){clearTimeout(t);r()}}});
+const gather=(p=pc)=>new Promise(r=>{if(p.iceGatheringState==='complete')return r();const t=setTimeout(r,4000);p.onicegatheringstatechange=()=>{if(p.iceGatheringState==='complete'){clearTimeout(t);r()}}});
 async function makeOffer(){
   offerT=Date.now();newPC();
   out.getTracks().forEach(t=>pc.addTrack(t,out));
@@ -155,11 +155,11 @@ async function makeOffer(){
   return JSON.stringify(pc.localDescription);
 }
 async function takeOffer(txt){
-  newPC();await pc.setRemoteDescription(JSON.parse(txt));
-  await pc.setLocalDescription(await pc.createAnswer());await gather();
-  return JSON.stringify(pc.localDescription);
+  const p=newPC();await p.setRemoteDescription(JSON.parse(txt));
+  await p.setLocalDescription(await p.createAnswer());await gather(p);
+  return pc===p?JSON.stringify(p.localDescription):null; /* 期间收到了更新的连线码，这份回复作废 */
 }
-const takeAnswer=txt=>pc.setRemoteDescription(JSON.parse(txt));
+const takeAnswer=txt=>{if(!pc||pc.signalingState!=='have-local-offer')return;return pc.setRemoteDescription(JSON.parse(txt)).catch(()=>{})}; /* 重复/过期的回复直接忽略 */
 function setDC(d){
   dc=d;d.binaryType='arraybuffer';d.onopen=()=>{setStat();if(role==='con')sync();if(role==='cam')camSegStart();toast('✅ 已连线')};d.onclose=()=>{setStat();if(role==='cam')camSegStop()};
   d.onmessage=e=>{if(typeof e.data!=='string'){rxChunk(e.data);return}let m;try{m=JSON.parse(e.data)}catch(x){return}if(m.t==='ev'||m.t==='get'||m.t==='clipstart'||m.t==='seg'||m.t==='clipend'){msgClip(m);return}
@@ -177,13 +177,13 @@ const buf={};
 function onSig(m){
   const b=buf[m.id]=buf[m.id]||{n:m.n,p:[],c:0};if(b.p[m.i]===undefined){b.p[m.i]=m.d;b.c++}
   if(b.c===b.n){delete buf[m.id];const s=b.p.join('');
-    if(m.k==='o'&&role==='con')takeOffer(s).then(a=>sigSend('a',a));
+    if(m.k==='o'&&role==='con')takeOffer(s).then(a=>{if(a)sigSend('a',a)}).catch(()=>{});
     if(m.k==='a'&&role==='cam')takeAnswer(s)}
 }
 let curSid=null;
 function onHello(d){
   if(role!=='cam'||!out)return;
-  const sid=d&&d.sid;if(pc&&sid===curSid&&(pc.connectionState==='connected'||Date.now()-offerT<12000))return;curSid=sid;
+  const sid=d&&d.sid,busy=pc&&(pc.connectionState==='connected'||Date.now()-offerT<12000);if(busy&&(!sid||!curSid||sid===curSid)){if(sid&&!curSid)curSid=sid;return}if(sid)curSid=sid;
   makeOffer().then(t=>sigSend('o',t));
 }
 async function initNet(){
@@ -199,7 +199,7 @@ async function initNet(){
 /* 手动配对 */
 function manual(){$('#man').hidden=false;$('#mcam').hidden=role!=='cam';$('#mcon').hidden=role!=='con'}
 async function mOffer(){if(!out){toast('请先开启摄像头');return}$('#mo').value='生成中…';$('#mo').value=await makeOffer()}
-async function mTake(){$('#co2').value='生成中…';try{$('#co2').value=await takeOffer($('#ci2').value.trim())}catch(e){$('#co2').value='连线码无效：'+e.message}}
+async function mTake(){$('#co2').value='生成中…';try{$('#co2').value=await takeOffer($('#ci2').value.trim())||''}catch(e){$('#co2').value='连线码无效：'+e.message}}
 async function mAnswer(){try{await takeAnswer($('#mi').value.trim());toast('连接中…');$('#man').hidden=true}catch(e){toast('回复码无效：'+e.message)}}
 
 /* ================= 角色入口 ================= */
