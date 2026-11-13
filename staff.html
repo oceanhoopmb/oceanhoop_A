@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OceanHoop 双设备直播</title>
+<style>
+:root{--bg:#0b1220;--card:#141d33;--tx:#e8eefc;--mut:#8fa0c4;--bd:#2b3a63;--ca:#e8650f;--cb:#1496ad;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef2fa;--card:#fff;--tx:#14203b;--mut:#5b6b8f;--bd:#cfd8ec}}
+:root[data-theme="dark"]{--bg:#0b1220;--card:#141d33;--tx:#e8eefc;--mut:#8fa0c4;--bd:#2b3a63}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+[hidden]{display:none!important}
+button,select,input,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:9px 10px;min-width:0}
+button{font-weight:700;cursor:pointer;touch-action:manipulation}button:active{transform:scale(.95)}
+button.p{background:#ff7a1a;border-color:#ff7a1a;color:#fff}button.d{background:#d93a3a;border-color:#d93a3a;color:#fff}
+input[type=color]{padding:0;width:44px;height:38px}
+.mut{color:var(--mut);font-size:12px}.f{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+#land{max-width:520px;margin:0 auto;padding:24px 16px}#land h1{font-size:22px;margin:0 0 6px}
+.role{display:block;width:100%;text-align:left;padding:16px;margin-top:12px;font-size:16px}.role small{display:block;font-weight:400;color:var(--mut);margin-top:4px}
+/* 摄像机端 */
+#cam{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;color:#fff}
+#pv{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;object-fit:contain;background:#000}
+#cst{position:absolute;left:calc(8px + env(safe-area-inset-left,0px));top:calc(8px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);padding:6px 10px;border-radius:8px;font-size:13px}
+#cbar{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;align-items:center}
+#brec{width:72px;height:72px;border-radius:50%;background:#d93a3a;border:4px solid #fff;color:#fff;font-size:13px;padding:0}#brec.on{border-radius:16px}
+#cstart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;width:min(86%,420px)}
+#cstart button{width:100%;padding:16px;font-size:18px}#cerr{color:#ff8a8a;margin-top:8px;white-space:pre-wrap;font-size:13px}
+#cdl{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%)}
+#cman{position:absolute;left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.55);color:#fff;font-size:12px}
+/* 控制台端 */
+#con{max-width:1200px;margin:0 auto;padding:8px}
+#ctop{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#ctop b{flex:1}
+#grid{display:grid;grid-template-columns:minmax(150px,1fr) minmax(280px,2.3fr) minmax(150px,1fr);gap:8px;margin-top:8px}
+@media(max-width:699px){#grid{grid-template-columns:1fr 1fr}#mid{grid-column:1/-1;order:-1}}
+.tp,.box{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px}
+.th{display:flex;align-items:center;justify-content:space-between;border-left:6px solid;padding-left:8px;margin-bottom:6px}.th b{font-size:16px}.th .big{font-size:34px;font-weight:800}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.sc{height:clamp(46px,9vh,64px);font-size:20px;color:#fff;border:0}.sc.m{background:var(--bg);color:#ff9a9a;border:1px solid var(--bd)}
+.fr{display:flex;gap:8px;align-items:center;margin-top:8px}.fl{width:36px;height:36px;border-radius:50%;padding:0;background:#c0392b;border:0;color:#fff}
+#mon{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/9}#mv{width:100%;height:100%;object-fit:contain;background:#000}
+#mph{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#6f7fa6;text-align:center;padding:10px}
+#clockbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}#ct{font:800 30px monospace}#clockbar .p{padding:12px 18px;font-size:16px}
+#hl .hl{display:flex;gap:6px;align-items:center;margin-top:6px;padding:6px;border:1px solid var(--bd);border-radius:8px;font-size:13px}#hl .hl span{flex:1}#hl .hl button,#hl .hl select{padding:6px}
+#view{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;color:#fff}#vv{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;object-fit:contain;background:#000}#vst{position:absolute;left:calc(8px + env(safe-area-inset-left,0px));top:calc(8px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);padding:6px 10px;border-radius:8px;font-size:13px}#vmu{position:absolute;right:calc(10px + env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.55);color:#fff}
+#modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px;z-index:9}#modal video{max-width:100%;max-height:78%;background:#000}
+#man{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:10px;z-index:12;color:var(--tx)}#man .box{width:min(640px,100%);max-height:100%;overflow:auto}
+#man textarea{width:100%;height:84px;margin-top:6px;font-size:11px;word-break:break-all}
+@supports not (aspect-ratio:16/9){#mon{height:0;padding-top:56.25%}#mon>video,#mon>div{position:absolute;top:0;left:0}}
+#toast{position:fixed;left:50%;top:42%;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:20px;display:none;z-index:30}
+</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script></head><body>
+<div id="gate" style="position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:16px"><div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;width:min(92%,360px)"><h2 style="margin:0 0 6px">🏀 记分员入口</h2><div class="mut">请输入最高管理员当场给你的临时密码</div><div class="f"><input id="pw" inputmode="numeric" maxlength="8" style="flex:1;font-size:20px;letter-spacing:3px" onkeydown="if(event.key==='Enter')enter()"><button class="p" onclick="enter()">进入</button></div></div></div>
+
+<div id="land">
+  <h1>🏀 OceanHoop 双设备直播</h1>
+  <div class="mut">两台设备都打开本页面，输入<b>同一个配对码</b>：一台当摄像机，一台当控制台。</div>
+  <div class="f"><label>配对码 <input id="code" maxlength="8" style="width:120px;font-size:18px;letter-spacing:2px"></label></div>
+  <button class="role p" onclick="start('cam')">📷 摄像机（手机）<small>拍摄、录影。画面带小记分牌，拍摄者只看干净画面</small></button>
+  <button class="role" onclick="start('con')">🎮 控制台（电脑或另一台手机）<small>计分、计时、标记精彩、回放。每次得分自动截取前后片段</small></button>
+  <button class="role" onclick="start('view')">👁 观众（看直播）<small>只看直播画面（含记分牌）。需在 claude.ai 登录有权限的账号，且控制台要开着</small></button>
+  <details class="mut" style="margin-top:14px"><summary>使用说明</summary><ol style="padding-left:18px"><li>两台设备输入同一个配对码。手机选「摄像机」，电脑或另一台手机选「控制台」。</li><li>摄像机先点「开启摄像头」，控制台会自动连上；连不上时两端都点「手动配对」。</li><li>按 ● REC 开始录影，停止需要连点两次。手机请插电并保持亮屏。</li><li>每次得分自动截取片段；暂停时点「回放最近」或列表里的 ▶。</li><li>想像 App 一样全屏使用：在手机浏览器菜单里选「添加到主屏幕」。</li></ol></details>
+</div>
+
+<div id="cam" hidden>
+  <video id="pv" autoplay muted playsinline></video>
+  <div id="cst">未连线</div>
+  <button onclick="goBack()" style="position:absolute;right:calc(10px + env(safe-area-inset-right,0px));top:calc(8px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border:1px solid #fff4">‹ 返回</button>
+  <div id="cbar"><button id="brec" onclick="toggleRec()" hidden>● REC</button><button id="bflip" onclick="flip()" hidden style="width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:1px solid #fff6;padding:0;font-size:20px">🔄</button></div>
+  <div id="cstart"><button class="p" onclick="cam()">开启摄像头</button><div id="cerr"></div></div>
+  <div id="cdl"></div>
+  <button id="cman" onclick="manual()">手动配对</button>
+</div>
+
+<div id="con" hidden>
+  <div id="ctop"><button onclick="goBack()">‹ 返回</button><b>OceanHoop 控制台</b><span id="cc" class="mut">○ 等待摄像机…</span><span id="cw" class="mut"></span><span id="ci" class="mut"></span><button onclick="manual()">手动配对</button></div>
+  <div class="box" id="rs" hidden style="margin-top:8px"></div>
+  <div id="grid">
+    <div class="tp" id="pa"></div>
+    <div id="mid">
+      <div id="mon"><video id="mv" autoplay muted playsinline></video><div id="mph">等待摄像机画面…<br>（摄像机端开启摄像头后会自动出现）</div></div>
+      <div id="clockbar"><button class="p" id="cb" onclick="clk()">▶ 开始</button><span id="ct">10:00</span><button onclick="per(-1)">节−</button><b id="cp">第1节</b><button onclick="per(1)">节+</button><button onclick="rstClk()">重设时间</button><button onclick="undo()">↩ 撤销</button></div>
+      <div class="f"><select id="kind"><option value="auto">类型：自动（最近得分）</option><option>罚球</option><option>两分球</option><option>三分球</option><option>盖帽</option><option>抢断</option><option>精彩防守</option><option>其他</option></select>
+        <button class="p" onclick="mark('a')">⭐主队</button><button class="p" style="background:#1496ad;border-color:#1496ad" onclick="mark('b')">⭐客队</button>
+        <button onclick="remoteRec()" id="rr">远程 ● 录影</button></div>
+      <div class="mut">快捷键（电脑）：Q/W/E 主队+1/+2/+3 · I/O/P 客队+1/+2/+3 · F/J 主/客犯规 · 空格 计时 · Z 撤销 · H 回放最近 · 双击画面全屏</div>
+    </div>
+    <div class="tp" id="pb"></div>
+  </div>
+  <div class="box" style="margin-top:8px">
+    <div class="f" style="margin-top:0"><b>精彩回放</b><button class="p" onclick="replayLast()">⏪ 回放最近</button>
+      <label class="mut"><input type="checkbox" id="autoc" checked> 得分自动截取 <select id="win"><option value="10,10">前10秒～后10秒</option><option value="10,5">前10秒～后5秒</option><option value="20,5">前20秒～后5秒</option><option value="20,10">前20秒～后10秒</option><option value="5,5">前5秒～后5秒</option></select></label></div>
+    <div class="mut">每次主/客队得分（+1/+2/+3）都会自动生成片段；没有标记时，「回放最近」播放最近一次片段，没有片段则播放最近约18秒。</div>
+    <div class="f"><select id="flt" onchange="renderH()"><option value="all">显示：全部</option><option value="a">主队</option><option value="b">客队</option><option value="star">仅标星</option></select><button onclick="playAll()">▶ 连播当前列表</button></div><div class="mut" id="bufst"></div><div id="hl"></div>
+  </div>
+  <details class="box" style="margin-top:8px" open><summary><b>赛前设置</b></summary>
+    <div class="f"><b>主队</b><input id="na" value="主队" style="flex:1"><input type="color" id="ca" value="#e8650f"></div>
+    <div class="f"><b>客队</b><input id="nb" value="客队" style="flex:1"><input type="color" id="cbc" value="#1496ad"></div>
+    <div class="f"><input id="ev" placeholder="赛事标题（显示在记分牌下）" style="flex:1"><label>每节分钟 <input id="len" type="number" min="1" max="60" value="10" style="width:68px"></label><button onclick="rstAll()">比分/犯规清零</button></div>
+  </details>
+</div>
+
+<div id="view" hidden><video id="vv" autoplay muted playsinline></video><div id="vst">连接中…</div><button onclick="goBack()" style="position:absolute;right:calc(10px + env(safe-area-inset-right,0px));top:calc(8px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.55);color:#fff;border:1px solid #fff4">‹ 返回</button><button id="vmu" onclick="vmute(this)">🔊 开声音</button></div>
+<div id="modal"><div id="rvt" style="color:#fff;font-size:14px"></div><video id="rv" playsinline controls></video><div class="f"><button onclick="rePlay()">再播一次</button><button onclick="skipNext()">下一个 ⏭</button><button onclick="closeRv()">关闭</button></div></div>
+<div id="man" hidden><div class="box">
+  <b>手动配对</b> <span class="mut">（自动配对不可用时，例如页面在浏览器里单独打开）</span>
+  <div id="mcam" hidden><div class="f"><button class="p" onclick="mOffer()">① 生成连线码</button></div><textarea id="mo" readonly placeholder="连线码"></textarea><div class="mut">把连线码发到控制台，再把控制台的回复码粘贴到这里：</div><textarea id="mi" placeholder="粘贴回复码"></textarea><div class="f"><button class="p" onclick="mAnswer()">③ 连接</button></div></div>
+  <div id="mcon" hidden><div class="mut">粘贴摄像机的连线码：</div><textarea id="ci2" placeholder="粘贴连线码"></textarea><div class="f"><button class="p" onclick="mTake()">② 生成回复码</button></div><textarea id="co2" readonly placeholder="回复码"></textarea></div>
+  <div class="f"><button onclick="$('#man').hidden=true">关闭</button></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+(function(){const show=m=>{let b=document.getElementById('errbar');if(!b){b=document.createElement('div');b.id='errbar';b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99;background:#b42318;color:#fff;padding:8px 12px;font:12px/1.4 system-ui;white-space:pre-wrap;max-height:40%;overflow:auto';document.body.appendChild(b)}b.textContent='页面错误（请截图发给开发者）：'+m};
+addEventListener('error',e=>show((e.message||'')+' @'+(e.lineno||'')));addEventListener('unhandledrejection',e=>show('Promise: '+(e.reason&&e.reason.message||e.reason)))})();
+</script>
+<script>
+const CFG={apiKey:'YOUR_API_KEY',authDomain:'YOUR_PROJECT.firebaseapp.com',projectId:'YOUR_PROJECT',appId:'YOUR_APP_ID'};/* ←改成你自己的 Firebase 配置 */
+firebase.initializeApp(CFG);const auth=firebase.auth(),fs=firebase.firestore();
+const PEER=Math.random().toString(36).slice(2,10),ready=()=>auth.currentUser?Promise.resolve():auth.signInAnonymously();
+window.claude={use:async n=>{if(n!=='room')return null;await ready();return{join:async name=>{const t0=Date.now()-2000,col=fs.collection('rooms').doc(name).collection('ev'),h={};
+ col.where('ts','>',t0).onSnapshot(q=>q.docChanges().forEach(c=>{if(c.type!=='added')return;const d=c.doc.data();(h[d.topic]||[]).forEach(f=>f({data:d.data,isMe:d.peer===PEER}))}));
+ return{emit:(topic,data)=>col.add({topic,data,peer:PEER,ts:Date.now()}).catch(()=>{}),on:(topic,fn)=>{(h[topic]=h[topic]||[]).push(fn)}}}}}};
+</script>
+<script>
+const $=s=>document.querySelector(s);
+const S={a:{n:'主队',c:'#e8650f',s:0,f:0},b:{n:'客队',c:'#1496ad',s:0,f:0},ev:'',per:1,left:600000,run:false,at:performance.now()};
+const fmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const now=()=>performance.now()/1000;
+const leftNow=()=>S.run?Math.max(0,S.left-(performance.now()-S.at)):S.left;
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',1700)}
+let role=null,code='',nr=null,pc=null,dc=null,offerT=0;
+try{$('#code').value=localStorage.getItem('ohcode')||''}catch(e){}
+if(!$('#code').value)$('#code').value=String(Math.floor(1000+Math.random()*9000));
+
+/* ================= 连线（WebRTC，信令走房间或手动） ================= */
+const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+const connected=()=>dc&&dc.readyState==='open';
+function newPC(){
+  if(pc){try{pc.close()}catch(e){}}
+  pc=new RTCPeerConnection(ICE);
+  pc.onconnectionstatechange=setStat;
+  pc.ondatachannel=e=>setDC(e.channel);
+  pc.ontrack=e=>{ if(role!=='con')return; const ms=e.streams[0]||new MediaStream([e.track]); if(remote!==ms){remote=ms;closeViewers()}$('#mv').srcObject=ms;$('#mph').hidden=true;
+    $('#mv').play().catch(()=>{})};
+  return pc;
+}
+const gather=()=>new Promise(r=>{if(pc.iceGatheringState==='complete')return r();const t=setTimeout(r,4000);pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete'){clearTimeout(t);r()}}});
+async function makeOffer(){
+  offerT=Date.now();newPC();
+  out.getTracks().forEach(t=>pc.addTrack(t,out));
+  setDC(pc.createDataChannel('c'));
+  await pc.setLocalDescription(await pc.createOffer());await gather();
+  return JSON.stringify(pc.localDescription);
+}
+async function takeOffer(txt){
+  newPC();await pc.setRemoteDescription(JSON.parse(txt));
+  await pc.setLocalDescription(await pc.createAnswer());await gather();
+  return JSON.stringify(pc.localDescription);
+}
+const takeAnswer=txt=>pc.setRemoteDescription(JSON.parse(txt));
+function setDC(d){
+  dc=d;d.binaryType='arraybuffer';d.onopen=()=>{setStat();if(role==='con')sync();if(role==='cam')camSegStart();toast('✅ 已连线')};d.onclose=()=>{setStat();if(role==='cam')camSegStop()};
+  d.onmessage=e=>{if(typeof e.data!=='string'){rxChunk(e.data);return}let m;try{m=JSON.parse(e.data)}catch(x){return}if(m.t==='ev'||m.t==='get'||m.t==='clipstart'||m.t==='seg'||m.t==='clipend'){msgClip(m);return}
+    if(m.t==='st'){Object.assign(S,m.S);S.at=performance.now();if(role==='cam')camStat()}
+    else if(m.t==='rec'){m.on?startRec():stopRec()}
+    else if(m.t==='info'){$('#ci').textContent=`摄像机 ${m.w}×${m.h}${m.w>=1280?' ✅720P':' ⚠'} ${m.rec?'● 录影中 '+fmt(m.rt*1000):'未录影'} · 摄像机缓冲${m.cb||0}段`;S.camRec=m.rec;$('#rr').textContent=m.rec?'远程 ■ 停止录影':'远程 ● 录影'}};
+}
+function setStat(){
+  const ok=connected();
+  if(role==='con')$('#cc').textContent=ok?'● 已连线':(nr?'○ 等待摄像机…（配对码 '+code+'）':'○ 未连线（用「手动配对」）');
+  if(role==='cam')camStat();
+}
+function sigSend(k,str){const id=Math.random().toString(36).slice(2,8),n=Math.ceil(str.length/2800);for(let i=0;i<n;i++)nr.emit('sig',{id,k,i,n,d:str.slice(i*2800,(i+1)*2800)})}
+const buf={};
+function onSig(m){
+  const b=buf[m.id]=buf[m.id]||{n:m.n,p:[],c:0};if(b.p[m.i]===undefined){b.p[m.i]=m.d;b.c++}
+  if(b.c===b.n){delete buf[m.id];const s=b.p.join('');
+    if(m.k==='o'&&role==='con')takeOffer(s).then(a=>sigSend('a',a));
+    if(m.k==='a'&&role==='cam')takeAnswer(s)}
+}
+let curSid=null;
+function onHello(d){
+  if(role!=='cam'||!out)return;
+  const sid=d&&d.sid;if(pc&&sid===curSid&&(pc.connectionState==='connected'||Date.now()-offerT<12000))return;curSid=sid;
+  makeOffer().then(t=>sigSend('o',t));
+}
+async function initNet(){
+  try{
+    if(window.claude&&claude.use){const r=await claude.use('room');
+      if(r){nr=await r.join('oh-'+code);
+        nr.on('sig',m=>{if(!m.isMe)onSig(m.data)});nr.on('hello',m=>{if(!m.isMe)onHello(m.data)});nr.on('vhello',m=>{if(!m.isMe&&role==='con')onVHello(m.data)});nr.on('vsig',m=>{if(!m.isMe)onVSig(m.data)});
+        if(role==='con')setInterval(()=>{if(!connected())nr.emit('hello',{sid:SID})},2000);
+        setStat();return}}
+  }catch(e){}
+  nr=null;setStat();
+}
+/* 手动配对 */
+function manual(){$('#man').hidden=false;$('#mcam').hidden=role!=='cam';$('#mcon').hidden=role!=='con'}
+async function mOffer(){if(!out){toast('请先开启摄像头');return}$('#mo').value='生成中…';$('#mo').value=await makeOffer()}
+async function mTake(){$('#co2').value='生成中…';try{$('#co2').value=await takeOffer($('#ci2').value.trim())}catch(e){$('#co2').value='连线码无效：'+e.message}}
+async function mAnswer(){try{await takeAnswer($('#mi').value.trim());toast('连接中…');$('#man').hidden=true}catch(e){toast('回复码无效：'+e.message)}}
+
+/* ================= 角色入口 ================= */
+function start(r){
+  role=r;code=($('#code').value.trim().toLowerCase().replace(/[^a-z0-9]/g,''))||'0000';
+  try{localStorage.setItem('ohcode',code)}catch(e){}
+  $('#land').hidden=true;$(r==='cam'?'#cam':r==='con'?'#con':'#view').hidden=false;
+  initNet();
+  if(r==='con')initCon();else if(r==='view')initView();else setStat();
+}
+
+/* ================= 摄像机端 ================= */
+const cv=document.createElement('canvas');cv.width=1280;cv.height=720;const cx=cv.getContext('2d');
+let stream=null,out=null,rec=null,chunks=[],mime='',recT0=0,wake=null;
+function board(){
+  const x=18,y=16,rw=190,cw=104,h=64;
+  cx.fillStyle='rgba(8,14,30,.82)';cx.fillRect(x,y,rw+cw,h);cx.textBaseline='middle';
+  [['a',0],['b',1]].forEach(([k,i])=>{const t=S[k],yy=y+i*32;
+    cx.fillStyle=t.c;cx.fillRect(x,yy,6,32);
+    cx.textAlign='left';cx.fillStyle='#fff';cx.font='bold 17px sans-serif';cx.fillText(t.n,x+14,yy+17,104);
+    cx.font='13px sans-serif';cx.fillStyle=t.f>=5?'#ff6b6b':'#ffd7a8';cx.fillText('F'+t.f,x+124,yy+17);
+    cx.textAlign='right';cx.fillStyle='#fff';cx.font='bold 24px sans-serif';cx.fillText(t.s,x+rw-8,yy+17)});
+  cx.fillStyle='rgba(30,40,70,.92)';cx.fillRect(x+rw,y,cw,h);cx.textAlign='center';
+  cx.fillStyle='#ffb36b';cx.font='bold 14px sans-serif';cx.fillText('Q'+S.per,x+rw+cw/2,y+17);
+  cx.fillStyle=S.run?'#fff':'#ff8a8a';cx.font='bold 26px monospace';cx.fillText(fmt(leftNow()),x+rw+cw/2,y+43);
+  if(S.ev){cx.font='bold 14px sans-serif';cx.textAlign='left';const m=cx.measureText(S.ev).width+16;cx.fillStyle='rgba(8,14,30,.82)';cx.fillRect(x,y+h+4,m,22);cx.fillStyle='#fff';cx.fillText(S.ev,x+8,y+h+15)}
+  cx.textAlign='right';cx.fillStyle='rgba(255,255,255,.55)';cx.font='bold 18px sans-serif';cx.fillText('OceanHoop',1264,700);
+}
+function camDraw(){
+  const v=$('#pv');
+  if(v.videoWidth)cx.drawImage(v,0,0,1280,720);else{cx.fillStyle='#000';cx.fillRect(0,0,1280,720)}
+  board();
+}
+async function cam(){
+  $('#cerr').textContent='';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('#cerr').textContent='此环境不支持摄像头（需要 https 的浏览器页面）。';return}
+  const v={facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}};
+  try{
+    try{stream=await navigator.mediaDevices.getUserMedia({video:v,audio:true})}
+    catch(e){if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;stream=await navigator.mediaDevices.getUserMedia({video:v,audio:false})}
+    const pv=$('#pv');pv.srcObject=stream;await pv.play();
+    out=cv.captureStream(30);stream.getAudioTracks().forEach(t=>out.addTrack(t));
+    setInterval(camDraw,1000/30);
+    $('#cstart').hidden=true;$('#brec').hidden=false;$('#bflip').hidden=false;wl();camStat();
+    setInterval(()=>{camStat();if(connected()){const st=stream.getVideoTracks()[0].getSettings();dc.send(JSON.stringify({t:'info',w:st.width,h:st.height,rec:!!(rec&&rec.state==='recording'),rt:(performance.now()-recT0)/1000,cb:csegs.length}))}},1000);
+    if(nr)onHello();
+  }catch(e){
+    $('#cerr').textContent=`摄像头失败：${e.name} ${e.message}\n`+((e.name==='NotAllowedError'||e.name==='SecurityError')?'被拦截。若在聊天预览框里，请用手机浏览器直接打开此页面，并允许摄像头；这时自动配对可能不可用，请用左下角「手动配对」。':'请确认没有其他 App 占用摄像头。');
+  }
+}
+function camStat(){
+  const isRec=rec&&rec.state==='recording',st=stream&&stream.getVideoTracks()[0]?stream.getVideoTracks()[0].getSettings():{};
+  $('#cst').textContent=`${connected()?'● 已连线':'○ 未连线'}${st.width?` · ${st.width}×${st.height}`:''}${isRec?' · ● REC '+fmt(performance.now()-recT0):''} · ${S.a.s}:${S.b.s}`;
+}
+const pick=()=>['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
+let armT=0;
+function toggleRec(){if(rec&&rec.state==='recording'){if(Date.now()-armT<3000){armT=0;stopRec()}else{armT=Date.now();toast('再点一次停止录影')}}else startRec()}
+function startRec(){
+  if(!out){toast('请先开启摄像头');return}
+  if(rec&&rec.state==='recording')return;
+  mime=pick();chunks=[];$('#cdl').innerHTML='';
+  rec=new MediaRecorder(out,{mimeType:mime,videoBitsPerSecond:2500000});
+  rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  rec.onstop=()=>{const b=new Blob(chunks,{type:mime}),u=URL.createObjectURL(b);
+    $('#cdl').innerHTML=`<a href="${u}" download="oceanhoop-${Date.now()}.${mime.includes('mp4')?'mp4':'webm'}"><button class="p" style="padding:14px 20px">⬇ 下载完整比赛视频（${(b.size/1048576).toFixed(1)}MB，含记分牌）</button></a>`;camStat()};
+  rec.start(1000);recT0=performance.now();
+  $('#brec').classList.add('on');$('#brec').textContent='■ STOP';
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>wake=w)}catch(e){}
+  camStat();
+}
+function stopRec(){if(rec&&rec.state==='recording'){rec.stop();$('#brec').classList.remove('on');$('#brec').textContent='● REC';wake&&wake.release&&wake.release()}}
+
+/* ===== 摄像机端：回放缓冲与取片（由摄像机手机自己录，画质更好、带声音） ===== */
+let csegs=[],cevs=[],cRec=null,cTimer=null,cmime='';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function camSegStart(){
+  if(cTimer||!out||!window.MediaRecorder)return;
+  cmime=pickC();
+  const mk=()=>{const r=new MediaRecorder(out,{mimeType:cmime,videoBitsPerSecond:1200000}),parts=[],start=now();
+    r.ondataavailable=e=>e.data.size&&parts.push(e.data);
+    r.onstop=()=>{const b=new Blob(parts,{type:cmime});if(b.size>0)csegs.push({start,end:now(),blob:b});cprune()};
+    r.start();return r};
+  cRec=mk();cTimer=setInterval(()=>{const o=cRec;cRec=mk();try{o.stop()}catch(e){}},3000);
+}
+function camSegStop(){clearInterval(cTimer);cTimer=null;try{cRec&&cRec.state!=='inactive'&&cRec.stop()}catch(e){}}
+function cprune(){const n=now();csegs=csegs.filter(s=>s.end>n-40||cevs.some(v=>s.end>v.te-v.pre&&s.start<v.te+v.post))}
+async function sendClip(g){
+  if(!connected())return;
+  try{
+    const ev=cevs.find(v=>v.id==g.id);
+    if(!g.last&&!ev){dc.send(JSON.stringify({t:'clipstart',id:g.id,n:0}));dc.send(JSON.stringify({t:'clipend',id:g.id}));return}
+    const te=g.last?now():ev.te,lo=te-g.pre,hi=te+g.post;
+    const c=csegs.filter(s=>s.end>lo&&s.start<hi).sort((a,b)=>a.start-b.start);
+    const lastEnd=csegs.length?csegs[csegs.length-1].end:0;
+    dc.send(JSON.stringify({t:'clipstart',id:g.id,n:c.length,partial:hi>lastEnd,mime:cmime,lo,hi}));
+    for(const s of c){const bf=await s.blob.arrayBuffer();dc.send(JSON.stringify({t:'seg',size:bf.byteLength,st:s.start,en:s.end}));
+      for(let o=0;o<bf.byteLength;o+=16000){while(dc.bufferedAmount>1e6)await sleep(40);dc.send(bf.slice(o,o+16000))}}
+    dc.send(JSON.stringify({t:'clipend',id:g.id}));
+  }catch(e){}
+}
+/* 控制台端收片 */
+let rx=null,pend=null,pendT=null,fq=Promise.resolve(),curFin=null;
+function rxChunk(b){if(rx&&rx.cur){rx.cur.parts.push(b);rx.cur.got+=b.byteLength;if(rx.cur.got>=rx.cur.size){rx.blobs.push(new Blob(rx.cur.parts,{type:rx.mime}));rx.cur=null}}}
+function msgClip(m){
+  if(role==='cam'){if(m.t==='ev'){cevs.push({id:m.id,te:now(),pre:m.pre,post:m.post});if(cevs.length>25)cevs.shift()}else if(m.t==='get')sendClip(m);return}
+  if(m.t==='clipstart')rx={id:m.id,n:m.n,partial:m.partial,mime:m.mime,lo:m.lo,hi:m.hi,metas:[],blobs:[],cur:null};
+  else if(m.t==='seg'&&rx){rx.cur={size:m.size,parts:[],got:0};rx.metas.push({st:m.st,en:m.en})}
+  else if(m.t==='clipend'&&rx){
+    const r=rx;rx=null;clearTimeout(pendT);const p=pend;pend=null;const ok=r.blobs.length>0;
+    if(ok&&p&&p.h){
+      let cum=[],t=0;r.metas.forEach(x=>{cum.push(t);t+=Math.max(0,x.en-x.st)});
+      const a=Math.max(r.lo,r.metas[0].st),b=Math.min(r.hi,r.metas[r.metas.length-1].en);
+      p.h.blobs=r.blobs;p.h.partial=!!r.partial;p.h.trim={off:Math.max(0,a-r.metas[0].st),dur:Math.max(1,b-a),cum};
+    }
+    p&&p.res&&p.res(ok);
+  }
+}
+/* 取片队列：一次只取一个，避免数据混在一起 */
+function doFetch(h){return new Promise(res=>{
+  if(!connected())return res(false);
+  pend={h,res};
+  dc.send(JSON.stringify({t:'get',id:h.id,pre:h.pre,post:h.post,last:!h.id}));
+  clearTimeout(pendT);pendT=setTimeout(()=>{if(pend){const r=pend.res;pend=null;rx=null;r(false)}},20000);
+})}
+const fetchClip=h=>fq=fq.then(()=>doFetch(h)).catch(()=>false);
+function sched(h){setTimeout(()=>prefetch(h),(h.post+4)*1000)}
+async function prefetch(h,retry){
+  if(!H.includes(h))return;
+  h.st='get';renderH();
+  const ok=await fetchClip(h);
+  if(ok&&h.partial&&!retry){h.st='rec';renderH();setTimeout(()=>prefetch(h,1),3500);return}
+  h.st=ok?'ok':'fail';renderH();
+}
+function evSend(h){if(connected())dc.send(JSON.stringify({t:'ev',id:h.id,pre:h.pre,post:h.post}))}
+
+/* ===== 观众：控制台转发直播画面 ===== */
+let vid='v'+Math.random().toString(36).slice(2,8),vp=null,vbuf={},remote=null,vpcs={},vT=0;
+const gatherP=p=>new Promise(r=>{if(p.iceGatheringState==='complete')return r();const t=setTimeout(r,4000);p.onicegatheringstatechange=()=>{if(p.iceGatheringState==='complete'){clearTimeout(t);r()}}});
+function vSend(to,k,str,v){const id=Math.random().toString(36).slice(2,8),n=Math.ceil(str.length/2800);for(let i=0;i<n;i++)nr.emit('vsig',{id,k,i,n,d:str.slice(i*2800,(i+1)*2800),to,vid:v})}
+function onVSig(m){
+  if(role==='view'?m.to!==vid:(role==='con'?m.to!=='c':true))return;
+  const b=vbuf[m.id]=vbuf[m.id]||{n:m.n,p:[],c:0};if(b.p[m.i]===undefined){b.p[m.i]=m.d;b.c++}
+  if(b.c<b.n)return;delete vbuf[m.id];const s=b.p.join('');
+  if(role==='view'&&m.k==='o')vAnswer(s);
+  if(role==='con'&&m.k==='a'&&vpcs[m.vid])vpcs[m.vid].pc.setRemoteDescription(JSON.parse(s)).catch(()=>{});
+}
+function closeViewers(){Object.values(vpcs).forEach(x=>{try{x.pc.close()}catch(e){}});vpcs={}}
+async function onVHello(d){
+  if(!remote||!d||!d.vid||!nr)return;const ex=vpcs[d.vid];
+  if(ex&&(ex.pc.connectionState==='connected'||Date.now()-ex.t<12000))return;
+  if(ex)try{ex.pc.close()}catch(e){}
+  const p=new RTCPeerConnection(ICE);vpcs[d.vid]={pc:p,t:Date.now()};
+  remote.getTracks().forEach(t=>p.addTrack(t,remote));
+  await p.setLocalDescription(await p.createOffer());await gatherP(p);
+  vSend(d.vid,'o',JSON.stringify(p.localDescription),d.vid);
+}
+function initView(){
+  setInterval(()=>{
+    const v=$('#vv'),ok=vp&&vp.connectionState==='connected'&&v.readyState>=2;
+    $('#vst').textContent=ok?'● 直播中':(nr?'○ 等待控制台开始直播…（配对码 '+code+'）':'○ 无法连线（需要在 claude.ai 里登录后打开）');
+    if(!ok&&nr&&Date.now()-vT>3500){vT=Date.now();nr.emit('vhello',{vid})}
+  },1000);
+}
+async function vAnswer(s){
+  if(vp)try{vp.close()}catch(e){}
+  vp=new RTCPeerConnection(ICE);
+  vp.ontrack=e=>{const v=$('#vv');v.srcObject=e.streams[0]||new MediaStream([e.track]);v.play().catch(()=>{})};
+  await vp.setRemoteDescription(JSON.parse(s));await vp.setLocalDescription(await vp.createAnswer());await gatherP(vp);
+  vSend('c','a',JSON.stringify(vp.localDescription),vid);
+}
+function vmute(b){const v=$('#vv');v.muted=!v.muted;b.textContent=v.muted?'🔊 开声音':'🔇 静音'}
+
+const SID=Math.random().toString(36).slice(2,8);
+let wake2=null;
+function wl(){try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>wake2=w).catch(()=>{})}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&role&&role!=='view')wl()});
+let facing='environment';
+async function flip(){
+  try{const f=facing==='environment'?'user':'environment';
+    const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:f},width:{ideal:1280},height:{ideal:720}},audio:false});
+    stream.getVideoTracks().forEach(t=>t.stop());
+    stream=new MediaStream([...ns.getVideoTracks(),...stream.getAudioTracks()]);
+    const pv=$('#pv');pv.srcObject=stream;await pv.play();facing=f;camStat();toast(f==='user'?'前置摄像头':'后置摄像头')}
+  catch(e){toast('切换失败：'+e.name)}
+}
+let snaps=[],holdSave=false,rsj=null;
+function snap(){holdSave=false;$('#rs')&&($('#rs').hidden=true);snaps.push({a:[S.a.s,S.a.f],b:[S.b.s,S.b.f],hid});if(snaps.length>30)snaps.shift()}
+function undo(){const x=snaps.pop();if(!x){toast('没有可撤销的操作');return}
+  S.a.s=x.a[0];S.a.f=x.a[1];S.b.s=x.b[0];S.b.f=x.b[1];H=H.filter(h=>!(h.auto&&h.id>x.hid));renderH();upd();toast('已撤销')}
+function save(){if(holdSave)return;try{localStorage.setItem('ohS',JSON.stringify({a:S.a,b:S.b,ev:S.ev,per:S.per,left:leftNow(),code}))}catch(e){}}
+function restore(){
+  try{const j=JSON.parse(localStorage.getItem('ohS')||'null');
+    if(j&&j.code===code&&(j.a.s||j.b.s||j.per>1||j.a.f||j.b.f)){rsj=j;holdSave=true;const r=$('#rs');r.hidden=false;
+      r.innerHTML=`<b>发现上一场：</b>${j.a.n} ${j.a.s} : ${j.b.s} ${j.b.n}（第${j.per}节）　<button class="p" onclick="doRestore()">继续上一场</button> <button onclick="holdSave=false;$('#rs').hidden=true;upd()">新比赛</button>`}
+  }catch(e){}
+}
+function doRestore(){const j=rsj;holdSave=false;Object.assign(S.a,j.a);Object.assign(S.b,j.b);S.ev=j.ev||'';S.per=j.per;S.left=j.left;S.run=false;S.at=performance.now();
+  $('#na').value=S.a.n;$('#nb').value=S.b.n;$('#ca').value=S.a.c;$('#cbc').value=S.b.c;$('#ev').value=S.ev;$('#rs').hidden=true;upd()}
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.2;o.start();o.stop(c.currentTime+.8)}catch(e){}}
+let bkT=0;
+function goBack(){
+  if(rec&&rec.state==='recording'&&Date.now()-bkT>3000){bkT=Date.now();toast('正在录影！再点一次退出（未下载的录像会丢失）');return}
+  try{save()}catch(e){}
+  try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}
+  try{pc&&pc.close()}catch(e){}
+  location.reload();
+}
+const lumc=h=>{const c=h.replace('#','');const v=[0,2,4].map(i=>{const x=parseInt(c.substr(i,2),16)/255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2]};
+const ink=h=>{const l=lumc(h);return 1.05/(l+.05)>=(l+.05)/.062?'#fff':'#04202a'};
+function keys(){
+  addEventListener('keydown',e=>{
+    if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;
+    const k=e.key.toLowerCase(),m={q:['a',1],w:['a',2],e:['a',3],i:['b',1],o:['b',2],p:['b',3]};
+    if(m[k])sc(...m[k]);
+    else if(k==='f'){snap();S.a.f++;upd()}else if(k==='j'){snap();S.b.f++;upd()}
+    else if(k===' '){e.preventDefault();clk()}else if(k==='z')undo();else if(k==='h')replayLast();
+    else if(k==='escape')closeRv();
+  });
+}
+
+/* ================= 控制台端 ================= */
+['a','b'].forEach(k=>{
+  $('#p'+k).innerHTML=`<div class="th" style="border-color:var(--c${k})"><b id="n${k}"></b><div class="big" id="s${k}">0</div></div>
+  <div class="g3">${[1,2,3].map(n=>`<button class="sc" style="background:var(--c${k});color:var(--ct${k})" onclick="sc('${k}',${n})">+${n}</button>`).join('')}</div>
+  <div class="g3">${[1,2,3].map(n=>`<button class="sc m" onclick="sc('${k}',-${n})">−${n}</button>`).join('')}</div>
+  <div class="fr"><button class="fl" id="f${k}" onpointerdown="fdown('${k}')" onpointerup="fup('${k}')" onpointerleave="fcancel()" oncontextmenu="return false">0</button><span class="mut">犯规：点一下 +1，长按 −1</span></div>`;
+});
+let H=[],hid=0,segs=[],segRec=null,segTimer=null,ft=null,fLong=false;
+function initCon(){
+  setInterval(()=>{if(S.run&&leftNow()<=0){S.left=0;S.run=false;upd();toast('本节时间到');beep()}ctUpd()},200);
+  restore();setInterval(sync,1000);upd();renderH();startSegs();setInterval(bufSt,1000);keys();wl();$('#mon').ondblclick=()=>{const m=$('#mon');m.requestFullscreen&&m.requestFullscreen()};
+}
+function sync(){if(connected())dc.send(JSON.stringify({t:'st',S:{a:S.a,b:S.b,ev:S.ev,per:S.per,left:leftNow(),run:S.run}}))}
+function ctUpd(){$('#ct').textContent=fmt(leftNow())}
+function upd(){
+  document.documentElement.style.setProperty('--ca',S.a.c);document.documentElement.style.setProperty('--cb',S.b.c);document.documentElement.style.setProperty('--cta',ink(S.a.c));document.documentElement.style.setProperty('--ctb',ink(S.b.c));
+  ['a','b'].forEach(k=>{$('#n'+k).textContent=S[k].n;$('#s'+k).textContent=S[k].s;$('#f'+k).textContent=S[k].f});
+  $('#cb').textContent=S.run?'⏸ 暂停':'▶ '+(leftNow()<=0?'本节结束':'继续');$('#cp').textContent='第'+S.per+'节';ctUpd();sync();save();
+}
+function sc(k,n){
+  snap();navigator.vibrate&&navigator.vibrate(15);S[k].s=Math.max(0,S[k].s+n);
+  if(n>0){const ty=['','罚球','两分球','三分球'][n];S.lt=S.lt||{};S.lt[k]=ty;addClip(k,ty,true)}
+  upd();
+}
+function fdown(k){fLong=false;ft=setTimeout(()=>{fLong=true;snap();S[k].f=Math.max(0,S[k].f-1);upd();toast('犯规 −1')},600)}
+function fup(k){if(ft){clearTimeout(ft);ft=null;if(!fLong){snap();S[(k)].f++;upd()}}}
+function fcancel(){clearTimeout(ft);ft=null}
+function clk(){if(leftNow()<=0)return;S.left=leftNow();S.at=performance.now();S.run=!S.run;upd()}
+function per(d){S.per=Math.max(1,S.per+d);if(d>0)rstClk();else upd()}
+function rstClk(){S.run=false;S.left=(+$('#len').value||10)*60000;S.at=performance.now();upd()}
+let rstT=0;
+function rstAll(){if(Date.now()-rstT<3000){S.a.s=S.b.s=S.a.f=S.b.f=0;snaps=[];rstT=0;upd();toast('已清零')}else{rstT=Date.now();toast('再点一次确认清零比分和犯规')}}
+$('#na').oninput=e=>{S.a.n=e.target.value||'主队';upd()};$('#nb').oninput=e=>{S.b.n=e.target.value||'客队';upd()};
+$('#ca').oninput=e=>{S.a.c=e.target.value;upd()};$('#cbc').oninput=e=>{S.b.c=e.target.value;upd()};
+$('#ev').oninput=e=>{S.ev=e.target.value;upd()};$('#len').onchange=()=>{if(!S.run)rstClk()};
+let rrT=0;function remoteRec(){if(!connected()){toast('未连线');return}if(S.camRec&&Date.now()-rrT>3000){rrT=Date.now();toast('再点一次停止摄像机录影');return}dc.send(JSON.stringify({t:'rec',on:!S.camRec}))}
+
+/* --- 控制台收到的直播画面：每3秒一段独立视频，用于精彩回放 --- */
+function newSeg(st){
+  const r=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:2000000}),parts=[],start=now();
+  r.ondataavailable=e=>e.data.size&&parts.push(e.data);
+  r.onstop=()=>{const b=new Blob(parts,{type:mime});if(b.size>0)segs.push({start,end:now(),blob:b});prune()};
+  r.start();return r;
+}
+const rc=document.createElement('canvas'),rcx=rc.getContext('2d');rc.width=1280;rc.height=720;
+const pickC=()=>['video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm','video/mp4;codecs=avc1','video/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
+let rstream=null;
+function startSegs(){
+  if(!window.MediaRecorder||!rc.captureStream){toast('此浏览器不支持录制回放');return}
+  if(rstream)return;
+  setInterval(()=>{const v=$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}},1000/30);
+  rstream=rc.captureStream(30);mime=pickC();segRec=newSeg(rstream);
+  segTimer=setInterval(()=>{const o=segRec;segRec=newSeg(rstream);try{o.stop()}catch(e){}},3000);
+}
+function bufSt(){const w=Object.values(vpcs).filter(x=>x.pc.connectionState==='connected').length;$('#cw').textContent=w?'👁 '+w+' 位观众':'';const n=now(),a=segs.length?Math.round(n-segs[0].start):0;$('#bufst').textContent=`回放缓冲：${segs.length} 段，约 ${a} 秒${connected()?'':'（未连线）'}`}
+const win=h=>[h.t-h.pre,h.t+h.post];
+function prune(){const n=now();segs=segs.filter(s=>s.end>n-30)}
+function addClip(k,type,auto){
+  if(auto&&!$('#autoc').checked)return;
+  const[pre,post]=$('#win').value.split(',').map(Number);
+  const h={id:++hid,t:now(),clock:fmt(leftNow()),per:S.per,team:k,type,auto,pre,post,st:'rec'};
+  H.push(h);evSend(h);sched(h);
+  if(H.length>30){const i=H.findIndex(x=>x.auto&&!x.star);if(i>=0)H.splice(i,1)}
+  renderH();
+}
+function mark(k){
+  const sel=$('#kind').value;
+  const last=[...H].reverse().find(h=>h.team===k&&h.auto&&now()-h.t<8);
+  if(sel==='auto'&&last){last.star=true;renderH();toast('⭐ 已标星最近一次得分');return}
+  const[pre,post]=$('#win').value.split(',').map(Number);
+  const h={id:++hid,t:now(),clock:fmt(leftNow()),per:S.per,team:k,type:sel==='auto'?((S.lt&&S.lt[k])||'精彩'):sel,auto:false,star:true,pre,post,st:'rec'};
+  H.push(h);evSend(h);sched(h);renderH();toast('⭐ 已标记 '+S[k].n);
+}
+const T=['罚球','两分球','三分球','盖帽','抢断','精彩防守','精彩','其他'];
+const ST={rec:'⏳ 录制后段',get:'⬇ 取回中',ok:'✅ 就绪',fail:'⚠ 取回失败，点▶重试'};
+const shown=()=>H.filter(h=>{const f=$('#flt').value;return f==='all'||(f==='star'?h.star:h.team===f)});
+function renderH(){
+  const L=shown();
+  $('#hl').innerHTML=L.length?[...L].reverse().map(h=>`<div class="hl"><span>${h.star?'★ 标记':'自动'} <b style="color:var(--c${h.team})">${S[h.team].n}</b>　第${h.per}节 ${h.clock}<br><b class="mut">${ST[h.st]||''} · 前${h.pre}后${h.post}秒</b></span>
+  <select onchange="H.find(x=>x.id==${h.id}).type=this.value">${T.map(t=>`<option ${t==h.type?'selected':''}>${t}</option>`).join('')}</select>
+  <button class="p" onclick="playId(${h.id})">▶ 回放</button><button onclick="dlId(${h.id})">下载</button><button onclick="delId(${h.id})">删除</button></div>`).join(''):'<div class="mut" style="margin-top:6px">暂无片段。得分或标记后会出现在这里，并自动取回。</div>';
+}
+function delId(id){H=H.filter(h=>h.id!=id);renderH()}
+const clipOf=h=>{const[a,b]=win(h);return segs.filter(s=>s.end>a&&s.start<b).sort((x,y)=>x.start-y.start)};
+let lastH=null;
+async function playH(h,cb){
+  lastH=h;
+  const have=h.blobs&&h.blobs.length,stale=h.partial&&now()>h.t+h.post+4;
+  if(!have||stale){
+    if(!connected()){if(have)return playBlobs(h.blobs,h.trim,cb);return localPlay(h,cb)}
+    toast('正在从摄像机取回片段…');
+    const ok=await fetchClip(h);
+    if(!ok&&!(h.blobs&&h.blobs.length)){toast('摄像机缓冲里没有这段画面，改用控制台缓冲');return localPlay(h,cb)}
+    if(ok&&h.id){h.st='ok';renderH()}
+  }
+  playBlobs(h.blobs,h.trim,cb);
+}
+/* 精确截取：从事件前 pre 秒开始，到事件后 post 秒结束（片段按3秒拼接，开头用跳转、结尾按时间停止） */
+function playBlobs(bl,tr,cb){
+  const v=$('#rv'),urls=bl.map(b=>URL.createObjectURL(b));let i=0,fin=false;
+  tr=tr||{off:0,dur:1e9,cum:[]};
+  const finish=()=>{if(fin)return;fin=true;v.onended=v.onerror=v.ontimeupdate=null;try{v.pause()}catch(e){}curFin=null;cb&&cb()};
+  curFin=cb?finish:null;
+  $('#modal').style.display='flex';
+  const load=n=>{v.src=urls[n];v.onloadedmetadata=()=>{if(n===0&&tr.off>0.3){try{v.currentTime=tr.off}catch(e){}}};v.play().catch(()=>{})};
+  const nx=()=>{if(++i<urls.length)load(i);else finish()};
+  v.onended=nx;v.onerror=nx;
+  v.ontimeupdate=()=>{const el=(tr.cum[i]||0)+v.currentTime-(i===0?tr.off:0);if(el>=tr.dur-0.05)finish()};
+  load(0);
+}
+function localPlay(h,cb){
+  const c=clipOf(h);
+  if(!c.length){toast(`缓冲里没有这段时间的画面（现有${segs.length}段）。${connected()?'请确认直播画面在动，几秒后再试':'尚未连线'}`);cb&&setTimeout(cb,300);return}
+  playBlobs(c.map(s=>s.blob),null,cb);
+  if(h.t+h.post>now())toast('后段画面还在录，稍后再播可看到完整片段');
+}
+const playId=id=>{$('#rvt').textContent='';playH(H.find(h=>h.id==id))};
+function replayLast(){$('#rvt').textContent='';playH(H.length?H[H.length-1]:{id:0,t:now(),pre:18,post:0})}
+function rePlay(){lastH&&playH(lastH)}
+function playAll(){
+  const L=shown();if(!L.length){toast('列表里没有片段');return}
+  let i=0;
+  const next=()=>{if(i>=L.length){closeRv();toast('连播结束');return}
+    const h=L[i++];$('#rvt').textContent=`连播 ${i}/${L.length} · ${S[h.team].n} ${h.type}（第${h.per}节 ${h.clock}）`;playH(h,next)};
+  next();
+}
+function skipNext(){curFin&&curFin()}
+function closeRv(){const v=$('#rv');curFin=null;v.onended=v.onerror=v.ontimeupdate=null;v.pause();v.removeAttribute('src');$('#modal').style.display='none'}
+function dlId(id){
+  const h=H.find(x=>x.id==id),c=h.blobs?h.blobs.map(b=>({blob:b})):clipOf(h);if(!c.length){toast('请先点 ▶ 回放一次取回片段，再下载');return}
+  c.forEach((s,i)=>setTimeout(()=>{const a=document.createElement('a');a.href=URL.createObjectURL(s.blob);a.download=`highlight-${id}-part${i+1}.${(s.blob.type||mime).includes('mp4')?'mp4':'webm'}`;a.click()},i*400));
+}
+</script>
+<script>
+let MID='',LG={teams:[],matches:[]},LIVEON=true,lastJ='',lastT=0;
+const tx=id=>LG.teams.find(t=>t.id==id)||{name:'?',short:'?',roster:[]},esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const svv=(p,d)=>fs.doc(p).set(d,{merge:true}).then(()=>toast('已保存')).catch(e=>toast('保存失败：'+(e.message||e.code)));
+async function enter(){const c=$('#pw').value.trim();if(!c)return;try{await auth.signInAnonymously();const s=await fs.doc('sessions/'+c).get();if(!s.exists||s.data().exp<Date.now())return toast('密码无效或已过期');await fs.doc('staffs/'+auth.currentUser.uid).set({code:c});openS()}catch(e){toast('验证失败：'+(e.message||e.code))}}
+auth.onAuthStateChanged(async u=>{if(!u||window.ON)return;try{const s=await fs.doc('staffs/'+u.uid).get();if(s.exists){const k=await fs.doc('sessions/'+s.data().code).get();if(k.exists&&k.data().exp>Date.now())openS()}}catch(e){}});
+function openS(){window.ON=1;$('#gate').style.display='none';
+ $('#land').insertAdjacentHTML('afterbegin','<div class="f"><b>比赛</b><select id="mpick" style="flex:1"></select></div>');
+ $('#con').insertAdjacentHTML('beforeend','<details class="box" id="dpbox" style="margin-top:8px"><summary><b>资料录入（首发 / 球员数据 / 结束比赛 / 申请）</b></summary><div id="dp"></div></details>');
+ fs.doc('league/main').onSnapshot(s=>{if(s.exists){LG=s.data();fillPick()}});$('#mpick').onchange=pickM}
+function fillPick(){const p=$('#mpick'),v=p.value;p.innerHTML=LG.matches.map(m=>`<option value="${m.id}">${m.d} ${esc(tx(m.h).name)} vs ${esc(tx(m.a).name)}</option>`).join('');if(v)p.value=v;pickM()}
+async function pickM(){MID=$('#mpick').value;if(!MID)return;const m=LG.matches.find(x=>x.id==MID),a=tx(m.h),b=tx(m.a);$('#code').value=MID.toLowerCase().replace(/[^a-z0-9]/g,'');
+ S.a.n=a.name;S.b.n=b.name;$('#na').value=a.name;$('#nb').value=b.name;S.ev=$('#ev').value=a.venue||'';if(typeof upd==='function'&&role==='con')upd();
+ let d={};try{const s=await fs.doc('md/'+MID).get();d=s.exists?s.data():{}}catch(e){}const lu=d.lineup||{},st=d.stats||{};
+ $('#dp').innerHTML=`<div class="f"><button class="${LIVEON?'':'p'}" id="lvb" onclick="LIVEON=!LIVEON;this.textContent=LIVEON?'直播入口：开（点击关闭）':'直播入口：关（点击开启）';sync()">直播入口：开（点击关闭）</button><button class="d" onclick="finM()">结束比赛并写入最终比分</button></div>
+ <div class="f" style="align-items:flex-start">${[['h',m.h],['a',m.a]].map(([k,t])=>`<div style="flex:1;min-width:200px"><b>${esc(tx(t).name)}</b> <span class="mut">勾选 5 名首发</span>${tx(t).roster.map(p=>`<label style="display:flex;gap:6px;padding:3px 0"><input type="checkbox" class="lu${k}" value="${esc(p.n)}" ${(lu[k]||[]).includes(p.n)?'checked':''}> ${esc(p.n)} <span class="mut">${esc(p.pos||'')}</span></label>`).join('')}</div>`).join('')}</div><div class="f"><button class="p" onclick="saveLu()">确认首发阵容</button></div>
+ <table style="width:100%;margin-top:8px"><tr><th align="left">球员</th><th>得分</th><th>篮板</th><th>助攻</th></tr>${[...tx(m.h).roster,...tx(m.a).roster].map(p=>`<tr><td>${esc(p.n)}</td>${['pts','reb','ast'].map(k=>`<td><input type="number" min="0" style="width:60px" data-n="${esc(p.n)}" data-k="${k}" value="${(st[p.n]||{})[k]??''}"></td>`).join('')}</tr>`).join('')}</table><div class="f"><button class="p" onclick="saveSt()">保存球员数据</button></div>
+ <div class="mut" style="margin-top:8px">球队、主场、名单、赛程只有最高管理员能改。需要修改请提交申请：</div><textarea id="rqt" rows="3" style="width:100%" placeholder="例如：Penang Waves 主场改为 ……"></textarea><div class="f"><button onclick="sendRq()">提交给最高管理员</button></div>`}
+function saveLu(){const g=k=>[...document.querySelectorAll('.lu'+k+':checked')].map(x=>x.value),h=g('h'),a=g('a');if(h.length!=5||a.length!=5)return toast('每队需恰好选 5 人');svv('md/'+MID,{lineup:{h,a}})}
+function saveSt(){const o={};document.querySelectorAll('[data-n]').forEach(i=>{if(i.value==='')return;(o[i.dataset.n]=o[i.dataset.n]||{})[i.dataset.k]=+i.value});svv('md/'+MID,{stats:o})}
+function finM(){if(!confirm('确认结束比赛并把当前比分写为最终比分？'))return;LIVEON=false;svv('md/'+MID,{score:[S.a.s,S.b.s],fin:true});svv('live/'+MID,{on:false,s:[S.a.s,S.b.s],at:Date.now()})}
+function sendRq(){const t=$('#rqt').value.trim();if(!t)return;fs.doc('reqs/r'+Date.now()).set({text:t,ts:Date.now(),done:false,by:'staff'}).then(()=>{$('#rqt').value='';toast('已提交')})}
+const _sync=sync;sync=function(){_sync();if(role!=='con'||!MID)return;const j=JSON.stringify([LIVEON,S.a.s,S.b.s,S.a.f,S.b.f,S.per,S.run,S.run?0:Math.round(leftNow()/1000)]);if(j===lastJ&&Date.now()-lastT<10000)return;lastJ=j;lastT=Date.now();
+ fs.doc('live/'+MID).set({on:LIVEON,s:[S.a.s,S.b.s],f:[S.a.f,S.b.f],per:S.per,left:leftNow(),run:S.run,at:Date.now()}).catch(()=>{})};
+</script>
+</body></html>
