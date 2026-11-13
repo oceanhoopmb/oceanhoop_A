@@ -46,7 +46,7 @@ input[type=color]{padding:0;width:44px;height:38px}
 #man textarea{width:100%;height:84px;margin-top:6px;font-size:11px;word-break:break-all}
 @supports not (aspect-ratio:16/9){#mon{height:0;padding-top:56.25%}#mon>video,#mon>div{position:absolute;top:0;left:0}}
 #toast{position:fixed;left:50%;top:42%;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:20px;display:none;z-index:30}
-</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script></head><body>
+</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body>
 <div id="gate" style="position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:16px"><div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;width:min(92%,360px)"><h2 style="margin:0 0 6px">🏀 记分员入口</h2><div class="mut">请输入最高管理员当场给你的临时密码</div><div class="f"><input id="pw" inputmode="numeric" maxlength="8" style="flex:1;font-size:20px;letter-spacing:3px" onkeydown="if(event.key==='Enter')enter()"><button class="p" onclick="enter()">进入</button></div></div></div>
 
 <div id="land">
@@ -55,7 +55,7 @@ input[type=color]{padding:0;width:44px;height:38px}
   <div class="f"><label>配对码 <input id="code" maxlength="8" style="width:120px;font-size:18px;letter-spacing:2px"></label></div>
   <button class="role p" onclick="start('cam')">📷 摄像机（手机）<small>拍摄、录影。画面带小记分牌，拍摄者只看干净画面</small></button>
   <button class="role" onclick="start('con')">🎮 控制台（电脑或另一台手机）<small>计分、计时、标记精彩、回放。每次得分自动截取前后片段</small></button>
-  <button class="role" onclick="start('view')">👁 观众（看直播）<small>只看直播画面（含记分牌）。需在 claude.ai 登录有权限的账号，且控制台要开着</small></button>
+  <button class="role" onclick="start('view')">👁 观众（看直播）<small>只看直播画面（含记分牌）。需控制台开着</small></button>
   <details class="mut" style="margin-top:14px"><summary>使用说明</summary><ol style="padding-left:18px"><li>两台设备输入同一个配对码。手机选「摄像机」，电脑或另一台手机选「控制台」。</li><li>摄像机先点「开启摄像头」，控制台会自动连上；连不上时两端都点「手动配对」。</li><li>按 ● REC 开始录影，停止需要连点两次。手机请插电并保持亮屏。</li><li>每次得分自动截取片段；暂停时点「回放最近」或列表里的 ▶。</li><li>想像 App 一样全屏使用：在手机浏览器菜单里选「添加到主屏幕」。</li></ol></details>
 </div>
 
@@ -112,12 +112,16 @@ input[type=color]{padding:0;width:44px;height:38px}
 addEventListener('error',e=>show((e.message||'')+' @'+(e.lineno||'')));addEventListener('unhandledrejection',e=>show('Promise: '+(e.reason&&e.reason.message||e.reason)))})();
 </script>
 <script>
-const CFG={apiKey:'YOUR_API_KEY',authDomain:'YOUR_PROJECT.firebaseapp.com',projectId:'YOUR_PROJECT',appId:'YOUR_APP_ID'};/* ←改成你自己的 Firebase 配置 */
-firebase.initializeApp(CFG);const auth=firebase.auth(),fs=firebase.firestore();
-const PEER=Math.random().toString(36).slice(2,10),ready=()=>auth.currentUser?Promise.resolve():auth.signInAnonymously();
-window.claude={use:async n=>{if(n!=='room')return null;await ready();return{join:async name=>{const t0=Date.now()-2000,col=fs.collection('rooms').doc(name).collection('ev'),h={};
- col.where('ts','>',t0).onSnapshot(q=>q.docChanges().forEach(c=>{if(c.type!=='added')return;const d=c.doc.data();(h[d.topic]||[]).forEach(f=>f({data:d.data,isMe:d.peer===PEER}))}));
- return{emit:(topic,data)=>col.add({topic,data,peer:PEER,ts:Date.now()}).catch(()=>{}),on:(topic,fn)=>{(h[topic]=h[topic]||[]).push(fn)}}}}}};
+const SB_URL='https://oalppkrdhlhlimchoiky.supabase.co',SB_KEY='sb_publishable_wLgVQv9ckBf65RWtRZQYSQ_TE7ufYek';
+const sb=supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:40}}});const LDR={};
+/* 订阅一张表：先全量读取，之后任何变更（Realtime）都重新读取一次 */
+function sub(t,cb){let h;const load=()=>sb.from(t).select('*').then(({data,error})=>{if(!error)cb(data||[])});LDR[t]=load;load();
+ sb.channel('db-'+t+'-'+Math.random().toString(36).slice(2,8)).on('postgres_changes',{event:'*',schema:'public',table:t},()=>{clearTimeout(h);h=setTimeout(load,150)}).subscribe()}
+/* 双设备配对信令：Supabase Realtime Broadcast（接口与原来的 claude.use('room') 相同） */
+window.claude={use:async n=>{if(n!=='room')return null;return{join:name=>new Promise(res=>{const h={},ch=sb.channel('room-'+name,{config:{broadcast:{self:false}}});
+ ch.on('broadcast',{event:'*'},m=>(h[m.event]||[]).forEach(f=>f({data:m.payload,isMe:false})));
+ let done=false;const fin=()=>{if(done)return;done=true;res({emit:(topic,data)=>{ch.send({type:'broadcast',event:topic,payload:data}).catch(()=>{})},on:(topic,fn)=>{(h[topic]=h[topic]||[]).push(fn)}})};
+ ch.subscribe(s=>{if(s==='SUBSCRIBED')fin()});setTimeout(fin,6000)})}}};
 </script>
 <script>
 const $=s=>document.querySelector(s);
@@ -355,7 +359,7 @@ async function onVHello(d){
 function initView(){
   setInterval(()=>{
     const v=$('#vv'),ok=vp&&vp.connectionState==='connected'&&v.readyState>=2;
-    $('#vst').textContent=ok?'● 直播中':(nr?'○ 等待控制台开始直播…（配对码 '+code+'）':'○ 无法连线（需要在 claude.ai 里登录后打开）');
+    $('#vst').textContent=ok?'● 直播中':(nr?'○ 等待控制台开始直播…（配对码 '+code+'）':'○ 无法连线（请检查网络，且控制台需开着）');
     if(!ok&&nr&&Date.now()-vT>3500){vT=Date.now();nr.emit('vhello',{vid})}
   },1000);
 }
@@ -552,26 +556,26 @@ function dlId(id){
 <script>
 let MID='',LG={teams:[],matches:[]},LIVEON=true,lastJ='',lastT=0;
 const tx=id=>LG.teams.find(t=>t.id==id)||{name:'?',short:'?',roster:[]},esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const svv=(p,d)=>fs.doc(p).set(d,{merge:true}).then(()=>toast('已保存')).catch(e=>toast('保存失败：'+(e.message||e.code)));
-async function enter(){const c=$('#pw').value.trim();if(!c)return;try{await auth.signInAnonymously();const s=await fs.doc('sessions/'+c).get();if(!s.exists||s.data().exp<Date.now())return toast('密码无效或已过期');await fs.doc('staffs/'+auth.currentUser.uid).set({code:c});openS()}catch(e){toast('验证失败：'+(e.message||e.code))}}
-auth.onAuthStateChanged(async u=>{if(!u||window.ON)return;try{const s=await fs.doc('staffs/'+u.uid).get();if(s.exists){const k=await fs.doc('sessions/'+s.data().code).get();if(k.exists&&k.data().exp>Date.now())openS()}}catch(e){}});
+const svv=async(t,id,d)=>{try{const{data:o}=await sb.from(t).select('data').eq('id',id).maybeSingle();const{error}=await sb.from(t).upsert({id,data:{...(o&&o.data||{}),...d}});if(error)throw error;toast('已保存')}catch(e){toast('保存失败：'+(e.message||e.code))}};
+async function enter(){const c=$('#pw').value.trim();if(!c)return;try{const{data:{session}}=await sb.auth.getSession();if(!session){const a=await sb.auth.signInAnonymously();if(a.error)throw a.error}const r=await sb.rpc('claim_session',{c});if(r.error)throw r.error;if(!r.data)return toast('密码无效或已过期');openS()}catch(e){toast('验证失败：'+(e.message||e.code))}}
+(async()=>{try{const{data:{session}}=await sb.auth.getSession();if(!session||window.ON)return;const r=await sb.rpc('is_stf');if(r.data&&!window.ON)openS()}catch(e){}})();
 function openS(){window.ON=1;$('#gate').style.display='none';
  $('#land').insertAdjacentHTML('afterbegin','<div class="f"><b>比赛</b><select id="mpick" style="flex:1"></select></div>');
  $('#con').insertAdjacentHTML('beforeend','<details class="box" id="dpbox" style="margin-top:8px"><summary><b>资料录入（首发 / 球员数据 / 结束比赛 / 申请）</b></summary><div id="dp"></div></details>');
- fs.doc('league/main').onSnapshot(s=>{if(s.exists){LG=s.data();fillPick()}});$('#mpick').onchange=pickM}
+ sub('league',r=>{const x=r.find(y=>y.id=='main');if(x){LG=x.data;fillPick()}});$('#mpick').onchange=pickM}
 function fillPick(){const p=$('#mpick'),v=p.value;p.innerHTML=LG.matches.map(m=>`<option value="${m.id}">${m.d} ${esc(tx(m.h).name)} vs ${esc(tx(m.a).name)}</option>`).join('');if(v)p.value=v;pickM()}
 async function pickM(){MID=$('#mpick').value;if(!MID)return;const m=LG.matches.find(x=>x.id==MID),a=tx(m.h),b=tx(m.a);$('#code').value=MID.toLowerCase().replace(/[^a-z0-9]/g,'');
  S.a.n=a.name;S.b.n=b.name;$('#na').value=a.name;$('#nb').value=b.name;S.ev=$('#ev').value=a.venue||'';if(typeof upd==='function'&&role==='con')upd();
- let d={};try{const s=await fs.doc('md/'+MID).get();d=s.exists?s.data():{}}catch(e){}const lu=d.lineup||{},st=d.stats||{};
+ let d={};try{const r=await sb.from('md').select('data').eq('id',MID).maybeSingle();d=r.data?r.data.data:{}}catch(e){}const lu=d.lineup||{},st=d.stats||{};
  $('#dp').innerHTML=`<div class="f"><button class="${LIVEON?'':'p'}" id="lvb" onclick="LIVEON=!LIVEON;this.textContent=LIVEON?'直播入口：开（点击关闭）':'直播入口：关（点击开启）';sync()">直播入口：开（点击关闭）</button><button class="d" onclick="finM()">结束比赛并写入最终比分</button></div>
  <div class="f" style="align-items:flex-start">${[['h',m.h],['a',m.a]].map(([k,t])=>`<div style="flex:1;min-width:200px"><b>${esc(tx(t).name)}</b> <span class="mut">勾选 5 名首发</span>${tx(t).roster.map(p=>`<label style="display:flex;gap:6px;padding:3px 0"><input type="checkbox" class="lu${k}" value="${esc(p.n)}" ${(lu[k]||[]).includes(p.n)?'checked':''}> ${esc(p.n)} <span class="mut">${esc(p.pos||'')}</span></label>`).join('')}</div>`).join('')}</div><div class="f"><button class="p" onclick="saveLu()">确认首发阵容</button></div>
  <table style="width:100%;margin-top:8px"><tr><th align="left">球员</th><th>得分</th><th>篮板</th><th>助攻</th></tr>${[...tx(m.h).roster,...tx(m.a).roster].map(p=>`<tr><td>${esc(p.n)}</td>${['pts','reb','ast'].map(k=>`<td><input type="number" min="0" style="width:60px" data-n="${esc(p.n)}" data-k="${k}" value="${(st[p.n]||{})[k]??''}"></td>`).join('')}</tr>`).join('')}</table><div class="f"><button class="p" onclick="saveSt()">保存球员数据</button></div>
  <div class="mut" style="margin-top:8px">球队、主场、名单、赛程只有最高管理员能改。需要修改请提交申请：</div><textarea id="rqt" rows="3" style="width:100%" placeholder="例如：Penang Waves 主场改为 ……"></textarea><div class="f"><button onclick="sendRq()">提交给最高管理员</button></div>`}
-function saveLu(){const g=k=>[...document.querySelectorAll('.lu'+k+':checked')].map(x=>x.value),h=g('h'),a=g('a');if(h.length!=5||a.length!=5)return toast('每队需恰好选 5 人');svv('md/'+MID,{lineup:{h,a}})}
-function saveSt(){const o={};document.querySelectorAll('[data-n]').forEach(i=>{if(i.value==='')return;(o[i.dataset.n]=o[i.dataset.n]||{})[i.dataset.k]=+i.value});svv('md/'+MID,{stats:o})}
-function finM(){if(!confirm('确认结束比赛并把当前比分写为最终比分？'))return;LIVEON=false;svv('md/'+MID,{score:[S.a.s,S.b.s],fin:true});svv('live/'+MID,{on:false,s:[S.a.s,S.b.s],at:Date.now()})}
-function sendRq(){const t=$('#rqt').value.trim();if(!t)return;fs.doc('reqs/r'+Date.now()).set({text:t,ts:Date.now(),done:false,by:'staff'}).then(()=>{$('#rqt').value='';toast('已提交')})}
+function saveLu(){const g=k=>[...document.querySelectorAll('.lu'+k+':checked')].map(x=>x.value),h=g('h'),a=g('a');if(h.length!=5||a.length!=5)return toast('每队需恰好选 5 人');svv('md',MID,{lineup:{h,a}})}
+function saveSt(){const o={};document.querySelectorAll('[data-n]').forEach(i=>{if(i.value==='')return;(o[i.dataset.n]=o[i.dataset.n]||{})[i.dataset.k]=+i.value});svv('md',MID,{stats:o})}
+function finM(){if(!confirm('确认结束比赛并把当前比分写为最终比分？'))return;LIVEON=false;svv('md',MID,{score:[S.a.s,S.b.s],fin:true});svv('live',MID,{on:false,s:[S.a.s,S.b.s],at:Date.now()})}
+function sendRq(){const t=$('#rqt').value.trim();if(!t)return;sb.from('reqs').insert({id:'r'+Date.now(),data:{text:t,ts:Date.now(),done:false,by:'staff'}}).then(({error})=>{if(error)return toast('提交失败：'+error.message);$('#rqt').value='';toast('已提交')})}
 const _sync=sync;sync=function(){_sync();if(role!=='con'||!MID)return;const j=JSON.stringify([LIVEON,S.a.s,S.b.s,S.a.f,S.b.f,S.per,S.run,S.run?0:Math.round(leftNow()/1000)]);if(j===lastJ&&Date.now()-lastT<10000)return;lastJ=j;lastT=Date.now();
- fs.doc('live/'+MID).set({on:LIVEON,s:[S.a.s,S.b.s],f:[S.a.f,S.b.f],per:S.per,left:leftNow(),run:S.run,at:Date.now()}).catch(()=>{})};
+ sb.from('live').upsert({id:MID,data:{on:LIVEON,s:[S.a.s,S.b.s],f:[S.a.f,S.b.f],per:S.per,left:leftNow(),run:S.run,at:Date.now()}}).then(()=>{})};
 </script>
 </body></html>
