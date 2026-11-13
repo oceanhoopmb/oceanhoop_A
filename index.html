@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<head><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>COURTSIDE MY | 马来西亚篮球赛事</title>
 <style>
@@ -83,229 +82,16 @@ main{max-width:1280px;margin:auto;padding:30px 28px 70px}.eyebrow{color:var(--or
 </section>
 </main>
 <footer class="footer"><span>© 2026 COURTSIDE MY · MALAYSIA BASKETBALL</span><span>赛事资料示范版 · 非官方赛事数据</span></footer>
-<script>
-
-/* ==========================================
-   COURTSIDE MY — SUPABASE CONNECTION
-   ========================================== */
-
-const SUPABASE_URL = 'https://oalppkrdhlhlimchoiky.supabase.co';
-
-const SUPABASE_KEY = 'sb_publishable_wLgVQv9ckBf65RWtRZQYSQ_TE7ufYek';
-
-const sbClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-);
-
-const PEER = Math.random().toString(36).slice(2, 10);
-
-async function ready() {
-    const { data: { session } } = await sbClient.auth.getSession();
-
-    if (session) return;
-
-    const { error } = await sbClient.auth.signInAnonymously();
-
-    if (error) {
-        console.error('Supabase Auth Error:', error);
-        throw error;
-    }
-}
-
-/* ==========================================
-   WEBRTC ROOM — SUPABASE REALTIME
-   ========================================== */
-
-window.claude = {
-    use: async n => {
-        if (n !== 'room') return null;
-
-        await ready();
-
-        return {
-            join: async name => {
-                const handlers = {};
-
-                const channel = sbClient
-                    .channel('courtside-room-' + name + '-' + PEER)
-                    .on(
-                        'postgres_changes',
-                        {
-                            event: 'INSERT',
-                            schema: 'public',
-                            table: 'room_events',
-                            filter: 'room_name=eq.' + name
-                        },
-                        payload => {
-                            const d = payload.new;
-
-                            (handlers[d.topic] || []).forEach(fn => {
-                                fn({
-                                    data: d.data,
-                                    isMe: d.peer === PEER
-                                });
-                            });
-                        }
-                    );
-
-                await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(
-                        () => reject(new Error('Room connection timeout')),
-                        10000
-                    );
-
-                    channel.subscribe(status => {
-                        if (status === 'SUBSCRIBED') {
-                            clearTimeout(timeout);
-                            resolve();
-                        }
-
-                        if (status === 'CHANNEL_ERROR' ||
-                            status === 'TIMED_OUT') {
-                            clearTimeout(timeout);
-                            reject(new Error('Room subscription failed: ' + status));
-                        }
-                    });
-                });
-
-                return {
-                    emit: (topic, data) => {
-                        sbClient.from('room_events').insert({
-                            room_name: name,
-                            topic: topic,
-                            data: data,
-                            peer: PEER
-                        }).then(({ error }) => {
-                            if (error) {
-                                console.error('Room event error:', error);
-                            }
-                        });
-                    },
-
-                    on: (topic, fn) => {
-                        (handlers[topic] = handlers[topic] || []).push(fn);
-                    }
-                };
-            }
-        };
-    }
-};
-
-/* ==========================================
-   LOAD DATABASE DATA
-   ========================================== */
-
-async function loadCourtsideData() {
-    await ready();
-
-    const [leagueResult, matchResult, liveResult] =
-        await Promise.all([
-            sbClient
-                .from('league')
-                .select('data')
-                .eq('id', 'main')
-                .maybeSingle(),
-
-            sbClient
-                .from('match_data')
-                .select('id, data'),
-
-            sbClient
-                .from('live_data')
-                .select('id, data')
-        ]);
-
-    if (leagueResult.error) throw leagueResult.error;
-    if (matchResult.error) throw matchResult.error;
-    if (liveResult.error) throw liveResult.error;
-
-    if (leagueResult.data) {
-        LG = leagueResult.data.data;
-    }
-
-    MDm = {};
-    matchResult.data.forEach(row => {
-        MDm[row.id] = row.data;
-    });
-
-    LVm = {};
-    liveResult.data.forEach(row => {
-        LVm[row.id] = row.data;
-    });
-
-    refresh();
-}
-
-/* ==========================================
-   REALTIME DATABASE LISTENERS
-   ========================================== */
-
-function startCourtsideRealtime() {
-
-    sbClient
-        .channel('courtside-league')
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'league',
-                filter: 'id=eq.main'
-            },
-            payload => {
-                if (payload.new && payload.new.data) {
-                    LG = payload.new.data;
-                    refresh();
-                }
-            }
-        )
-        .subscribe();
-
-    sbClient
-        .channel('courtside-match-data')
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'match_data'
-            },
-            payload => {
-                if (payload.eventType === 'DELETE') {
-                    delete MDm[payload.old.id];
-                } else if (payload.new) {
-                    MDm[payload.new.id] = payload.new.data;
-                }
-
-                refresh();
-            }
-        )
-        .subscribe();
-
-    sbClient
-        .channel('courtside-live-data')
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'live_data'
-            },
-            payload => {
-                if (payload.eventType === 'DELETE') {
-                    delete LVm[payload.old.id];
-                } else if (payload.new) {
-                    LVm[payload.new.id] = payload.new.data;
-                }
-
-                refresh();
-            }
-        )
-        .subscribe();
-}
- col.where('ts','>',t0).onSnapshot(q=>q.docChanges().forEach(c=>{if(c.type!=='added')return;const d=c.doc.data();(h[d.topic]||[]).forEach(f=>f({data:d.data,isMe:d.peer===PEER}))}));
- return{emit:(topic,data)=>col.add({topic,data,peer:PEER,ts:Date.now()}).catch(()=>{}),on:(topic,fn)=>{(h[topic]=h[topic]||[]).push(fn)}}}}}};
+<script>const SB_URL='https://oalppkrdhlhlimchoiky.supabase.co',SB_KEY='sb_publishable_wLgVQv9ckBf65RWtRZQYSQ_TE7ufYek';
+const sbc=supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:40}}});const LDR={};
+/* 订阅一张表：先全量读取，之后任何变更（Realtime）都重新读取一次 */
+function sub(t,cb){let h;const load=()=>sbc.from(t).select('*').then(({data,error})=>{if(!error)cb(data||[])});LDR[t]=load;load();
+ sbc.channel('db-'+t+'-'+Math.random().toString(36).slice(2,8)).on('postgres_changes',{event:'*',schema:'public',table:t},()=>{clearTimeout(h);h=setTimeout(load,150)}).subscribe()}
+/* 双设备配对信令：Supabase Realtime Broadcast（接口与原来的 claude.use('room') 相同） */
+window.claude={use:async n=>{if(n!=='room')return null;return{join:name=>new Promise(res=>{const h={},ch=sbc.channel('room-'+name,{config:{broadcast:{self:false}}});
+ ch.on('broadcast',{event:'*'},m=>(h[m.event]||[]).forEach(f=>f({data:m.payload,isMe:false})));
+ let done=false;const fin=()=>{if(done)return;done=true;res({emit:(topic,data)=>{ch.send({type:'broadcast',event:topic,payload:data}).catch(()=>{})},on:(topic,fn)=>{(h[topic]=h[topic]||[]).push(fn)}})};
+ ch.subscribe(s=>{if(s==='SUBSCRIBED')fin()});setTimeout(fin,6000)})}}};
 const R=s=>{let x=Math.sin(s*12.9898)*43758.5453;return x-Math.floor(x)};
 const fmt=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const ds=n=>{let d=new Date();d.setDate(d.getDate()+n);return fmt(d)};
@@ -400,21 +186,10 @@ async function va(sdp,vv){if(VW.pc)try{VW.pc.close()}catch(e){}const p=VW.pc=new
 function closeW(){clearInterval(VW.h);try{VW.pc&&VW.pc.close()}catch(e){}VW.pc=null;if(document.fullscreenElement)document.exitFullscreen();document.getElementById('ov').style.display='none'}
 const rotW=()=>document.getElementById('ov').classList.toggle('rot'),muW=b=>{const v=document.getElementById('vv');v.muted=!v.muted;b.textContent=v.muted?'🔊 开声音':'🔇 静音'};
 async function fsW(){try{await document.getElementById('ov').requestFullscreen();await screen.orientation.lock('landscape')}catch(e){rotW()}}
-
-loadCourtsideData()
-    .then(() => {
-        startCourtsideRealtime();
-        console.log('COURTSIDE MY connected to Supabase.');
-    })
-    .catch(error => {
-        console.error('COURTSIDE MY database error:', error);
-        alert('数据库连接失败，请检查 Supabase 设置。');
-    });
-
-setInterval(() => {
-    if (LG) refresh();
-}, 30000);
-
+sub('league',r=>{const x=r.find(y=>y.id=='main');if(x){LG=x.data;refresh()}});
+sub('md',r=>{MDm={};r.forEach(d=>MDm[d.id]=d.data);refresh()});
+sub('live',r=>{LVm={};r.forEach(d=>LVm[d.id]=d.data);refresh()});
+setInterval(()=>{if(LG)refresh()},30000);
 </script>
 <style>#ov{position:fixed;inset:0;background:#000;z-index:50;display:none;color:#fff}#ov video{width:100%;height:100%;object-fit:contain;background:#000}#vbox{position:absolute;inset:0}#ov.rot #vbox{inset:auto;top:0;left:100%;width:100vh;height:100vw;transform-origin:top left;transform:rotate(90deg)}#ovb{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;z-index:2}#ovb button{background:rgba(0,0,0,.6);color:#fff;padding:9px 12px;border-radius:8px}</style>
 <div id="ov"><div id="vbox"><video id="vv" autoplay playsinline muted></video></div><div id="ovb"><button onclick="closeW()">‹ 退出</button><button onclick="rotW()">⟳ 横屏</button><button onclick="fsW()">⛶ 全屏</button><button id="mu" onclick="muW(this)">🔊 开声音</button><span id="vst" style="font-size:12px"></span></div></div></body></html>
