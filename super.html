@@ -16,9 +16,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px 4px;b
 #ov.rot #vbox{inset:auto;top:0;left:100%;width:100vh;height:100vw;transform-origin:top left;transform:rotate(90deg)}
 #ovb{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;z-index:2}#ovb button{background:rgba(0,0,0,.6);color:#fff}
 #pv{width:100%;max-height:320px;background:#000;border-radius:10px}#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:99px;display:none;z-index:30}
-</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script></head><body><header><div class="br">COURTSIDE<b>MY</b> <span class="mu">最高管理员</span></div></header><div id="gate" style="max-width:360px;margin:12vh auto;padding:16px"><div class="card"><h2>最高管理员登录</h2><div class="f"><input id="em" type="email" placeholder="邮箱" style="flex:1"></div><div class="f"><input id="pw" type="password" placeholder="密码" style="flex:1"><button class="o" onclick="login()">登录</button></div></div></div><main id="app" style="display:none"></main><div id="toast"></div><script>
-const CFG={apiKey:'YOUR_API_KEY',authDomain:'YOUR_PROJECT.firebaseapp.com',projectId:'YOUR_PROJECT',appId:'YOUR_APP_ID'};const SUPER='super@example.com';/* ←上线前改成你自己的 Firebase 配置和最高管理员邮箱 */
-firebase.initializeApp(CFG);const auth=firebase.auth(),fs=firebase.firestore();
+</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body><header><div class="br">COURTSIDE<b>MY</b> <span class="mu">最高管理员</span></div></header><div id="gate" style="max-width:360px;margin:12vh auto;padding:16px"><div class="card"><h2>最高管理员登录</h2><div class="f"><input id="em" type="email" placeholder="邮箱" style="flex:1"></div><div class="f"><input id="pw" type="password" placeholder="密码" style="flex:1"><button class="o" onclick="login()">登录</button></div></div></div><main id="app" style="display:none"></main><div id="toast"></div><script>
+const SB_URL='https://oalppkrdhlhlimchoiky.supabase.co',SB_KEY='sb_publishable_wLgVQv9ckBf65RWtRZQYSQ_TE7ufYek';
+const sb=supabase.createClient(SB_URL,SB_KEY,{realtime:{params:{eventsPerSecond:40}}});const LDR={};
+/* 订阅一张表：先全量读取，之后任何变更（Realtime）都重新读取一次 */
+function sub(t,cb){let h;const load=()=>sb.from(t).select('*').then(({data,error})=>{if(!error)cb(data||[])});LDR[t]=load;load();
+ sb.channel('db-'+t+'-'+Math.random().toString(36).slice(2,8)).on('postgres_changes',{event:'*',schema:'public',table:t},()=>{clearTimeout(h);h=setTimeout(load,150)}).subscribe()}
+const SUPER='oceanhoop@gmail.com';/* ←最高管理员邮箱，需与 supabase.sql 里 is_sup() 的邮箱一致 */
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t.h);t.h=setTimeout(()=>t.style.display='none',2200)};
 const ds=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
@@ -28,17 +32,20 @@ let L={pin:'',teams:[mkT(1,'Kuala Lumpur Stars','KLS','Coach Farid','MABA Stadiu
  matches:[{id:'m1',h:'t1',a:'t2',d:ds(0),t:'20:00',c:'mnbl'},{id:'m2',h:'t3',a:'t4',d:ds(2),t:'19:30',c:'MNBL'},{id:'m3',h:'t2',a:'t1',d:ds(5),t:'20:00',c:'MNBL'}]};
 let MD={},LV={},RQ=[],mid='m1',tab='sc',view={p:'home'};
 const tm=id=>L.teams.find(t=>t.id==id)||{name:'未知球队',short:'?',roster:[],venue:'',coach:''},mt=id=>L.matches.find(m=>m.id==id),vn=m=>tm(m.h).venue;
-const sv=(p,d)=>fs.doc(p).set(d).then(()=>toast('已保存')).catch(e=>toast('保存失败：'+(e.message||e.code)));const saveL=()=>sv('league/main',L);
+const sv=(t,id,d)=>sb.from(t).upsert({id,data:d}).then(({error})=>toast(error?'保存失败：'+error.message:'已保存'));const saveL=()=>sv('league','main',L);
 const left=v=>v.run?Math.max(0,v.left-(Date.now()-v.at)):v.left,fmt=ms=>{const s=Math.ceil(Math.max(0,ms)/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 function sc(m){const d=MD[m.id],v=LV[m.id];if(d&&d.fin&&d.score)return{s:d.score,st:'f'};if(v&&v.on)return{s:v.s||[0,0],st:'l'};return{s:null,st:'n'}}
 const tg=st=>st=='l'?'<span class="tag l">● 直播中</span>':st=='f'?'<span class="tag f">已结束</span>':'<span class="tag">未开始</span>';
 const liveOf=f=>L.matches.find(m=>f(m)&&LV[m.id]&&LV[m.id].on);
 const rd=s=>/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)&&s;
-function listen(cb,rq){const R=s=>{if(!rd(s))cb()};fs.doc('league/main').onSnapshot(s=>{if(s.exists)L=s.data();R(1)});fs.collection('md').onSnapshot(q=>{MD={};q.docs.forEach(d=>MD[d.id]=d.data());R(1)});fs.collection('live').onSnapshot(q=>{LV={};q.docs.forEach(d=>LV[d.id]=d.data());R(1)});
- if(rq)fs.collection('reqs').onSnapshot(q=>{RQ=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.ts-a.ts);R(1)})}
+function listen(cb,rq){const R=s=>{if(!rd(s))cb()};
+ sub('league',r=>{const x=r.find(y=>y.id=='main');if(x)L=x.data;R(1)});
+ sub('md',r=>{MD={};r.forEach(d=>MD[d.id]=d.data);R(1)});
+ sub('live',r=>{LV={};r.forEach(d=>LV[d.id]=d.data);R(1)});
+ if(rq)sub('reqs',r=>{RQ=r.map(d=>({id:d.id,...d.data})).sort((a,b)=>b.ts-a.ts);R(1)})}
 setInterval(()=>document.querySelectorAll('.clk').forEach(e=>{const v=LV[e.dataset.m];if(v)e.textContent=fmt(left(v))}),500);
 const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'}]},gath=p=>new Promise(r=>{if(p.iceGatheringState=='complete')return r();const t=setTimeout(r,4000);p.onicegatheringstatechange=()=>{if(p.iceGatheringState=='complete'){clearTimeout(t);r()}}});
-const SIG=()=>fs.collection('sig');
+
 
 function aRv(){return RQ.length?RQ.map(r=>`<div class="pl" style="gap:8px;align-items:flex-start"><span style="flex:1">${r.done?'✅ ':'🕓 '}${esc(r.text)}<div class="mu">${new Date(r.ts).toLocaleString()}</div></span><button onclick="rq('${r.id}',1)">${r.done?'重开':'已处理'}</button><button onclick="rq('${r.id}',0)">删除</button></div>`).join(''):'<div class="mu">暂无申请。</div>'}
 function aTm(){return L.teams.map((t,i)=>`<div class="card" style="background:var(--p2)"><div class="f"><input id="tn${i}" value="${esc(t.name)}" placeholder="队名"><input id="ts${i}" value="${esc(t.short)}" style="width:70px" placeholder="简称"><input id="tc${i}" value="${esc(t.coach)}" placeholder="教练"></div><div class="f"><input id="tv${i}" value="${esc(t.venue)}" placeholder="主场" style="flex:1"><input id="ta${i}" value="${esc(t.addr||'')}" placeholder="地址" style="flex:2"></div><div class="f"><input id="ti${i}" value="${esc(t.city||'')}" placeholder="城市"><input id="te${i}" value="${esc(t.state||'')}" placeholder="州属"><input id="ty${i}" value="${esc(t.year||'')}" style="width:80px" placeholder="成立年"><input id="tp${i}" value="${esc(t.cap||'')}" style="width:90px" placeholder="容量"></div><textarea id="tr${i}" rows="6" style="width:100%" placeholder="每行：姓名,位置(PG/SG/SF/PF/C),年龄,身高cm">${esc((t.roster||[]).map(p=>[p.n,p.pos,p.age||'',p.h||''].join(',')).join('\n'))}</textarea><div class="f"><button class="o" onclick="saveTm(${i})">保存本队</button><button class="r" onclick="delTm(${i})">删除</button></div></div>`).join('')+`<button onclick="L.teams.push({id:'t'+Date.now(),name:'新球队',short:'NEW',coach:'',venue:'',roster:[]});saveL()">＋ 新增球队</button>`}
@@ -47,15 +54,16 @@ function delTm(i){if(!confirm('删除此球队？其比赛也会一并删除'))r
 function aMc(){const o=v=>L.teams.map(t=>`<option value="${t.id}" ${t.id==v?'selected':''}>${esc(t.name)}</option>`).join('');return L.matches.map((m,i)=>`<div class="f"><input type="date" id="md${i}" value="${m.d}"><input type="time" id="mt${i}" value="${m.t}"><select id="mc${i}">${[['mnbl','联赛'],['cup','杯赛'],['fri','友谊赛']].map(c=>`<option value="${c[0]}" ${m.c==c[0]?'selected':''}>${c[1]}</option>`).join('')}</select><select id="mh${i}">${o(m.h)}</select>vs<select id="ma${i}">${o(m.a)}</select><button class="o" onclick="saveMc(${i})">保存</button><button class="r" onclick="L.matches.splice(${i},1);saveL()">删除</button></div>`).join('')+`<button onclick="addMc()">＋ 新增比赛</button><div class="mu" style="margin-top:6px">比赛场地默认为主队主场。</div>`}
 function saveMc(i){const m=L.matches[i];m.d=$('#md'+i).value;m.t=$('#mt'+i).value;m.c=$('#mc'+i).value;m.h=$('#mh'+i).value;m.a=$('#ma'+i).value;if(m.h==m.a)return toast('主客队不能相同');saveL()}
 function addMc(){if(L.teams.length<2)return toast('至少需要两支球队');L.matches.push({id:'m'+Date.now(),h:L.teams[0].id,a:L.teams[1].id,d:ds(1),t:'20:00',c:'MNBL'});saveL()}
-function rq(id,t){const r=RQ.find(x=>x.id==id);t?fs.doc('reqs/'+id).update({done:!r.done}):fs.doc('reqs/'+id).delete()}
-let SS=[];function aSe(){const now=Date.now();return`<div class="f"><button class="o" onclick="newPw(4)">生成临时密码（4 小时有效）</button><button onclick="newPw(12)">12 小时</button></div><div class="mu">把密码当场告诉记分员；过期或作废后无法再进入。</div>`+SS.map(s=>`<div class="pl"><span class="big">${s.id}</span><span class="mu">${s.exp>now?'有效至 '+new Date(s.exp).toLocaleTimeString():'已过期'}</span><button onclick="fs.doc('sessions/${s.id}').delete()">作废</button></div>`).join('')}
-function newPw(h){const c=String(Math.floor(100000+Math.random()*900000));fs.doc('sessions/'+c).set({exp:Date.now()+h*36e5}).then(()=>toast('新密码：'+c))}
+function rq(id,t){const r=RQ.find(x=>x.id==id);if(!r)return;const f=e=>{if(e.error)toast('操作失败：'+e.error.message);LDR.reqs&&LDR.reqs()};if(t){const{id:_,...d}=r;sb.from('reqs').update({data:{...d,done:!r.done}}).eq('id',id).then(f)}else sb.from('reqs').delete().eq('id',id).then(f)}
+let SS=[];function aSe(){const now=Date.now();return`<div class="f"><button class="o" onclick="newPw(4)">生成临时密码（4 小时有效）</button><button onclick="newPw(12)">12 小时</button></div><div class="mu">把密码当场告诉记分员；过期或作废后无法再进入。</div>`+SS.map(s=>`<div class="pl"><span class="big">${s.id}</span><span class="mu">${s.exp>now?'有效至 '+new Date(s.exp).toLocaleTimeString():'已过期'}</span><button onclick="delSess('${s.id}')">作废</button></div>`).join('')}
+function newPw(h){const c=String(Math.floor(100000+Math.random()*900000));sb.from('sessions').insert({id:c,exp:Date.now()+h*36e5}).then(({error})=>{if(error)return toast('生成失败：'+error.message);toast('新密码：'+c);LDR.sessions&&LDR.sessions()})}
+function delSess(c){sb.from('sessions').delete().eq('id',c).then(({error})=>{if(error)toast('作废失败：'+error.message);LDR.sessions&&LDR.sessions()})}
 const TABS=[['tm','球队/主场/名单'],['mc','赛程管理'],['rv','申请审核'],['se','记分员密码']];const FN={tm:aTm,mc:aMc,rv:aRv,se:aSe};
 function vAdm(){const sel=`<select onchange="mid=this.value;render()">${L.matches.map(m=>`<option value="${m.id}" ${m.id==mid?'selected':''}>${m.d} ${esc(tm(m.h).short)} vs ${esc(tm(m.a).short)}</option>`).join('')}</select>`;
  return`<div class="seg" style="margin-bottom:10px">${TABS.map(t=>`<button class="${tab==t[0]?'a':''}" onclick="tab='${t[0]}';render()">${t[1]}</button>`).join('')}</div>${['sc','lu','st','cm'].includes(tab)?`<div class="f">比赛：${sel}</div>`:''}<div class="card">${FN[tab]()}</div>`}
 function render(){if(!window.ON)return;$('#app').innerHTML=vAdm()}
 
-async function login(){try{const c=await auth.signInWithEmailAndPassword($('#em').value.trim(),$('#pw').value);if(c.user.email!==SUPER){auth.signOut();toast('此账号不是最高管理员')}}catch(e){toast('登录失败：'+(e.message||e.code))}}
-tab='tm';auth.onAuthStateChanged(u=>{if(u&&u.email===SUPER&&!window.ON){window.ON=1;$('#gate').style.display='none';$('#app').style.display='block';listen(render,1);fs.collection('sessions').onSnapshot(q=>{SS=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.exp-a.exp);if(tab=='se')render()});render()}});
+async function login(){try{const{data,error}=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});if(error)throw error;if(data.user.email!==SUPER){sb.auth.signOut();toast('此账号不是最高管理员')}}catch(e){toast('登录失败：'+(e.message||e.code))}}
+tab='tm';sb.auth.onAuthStateChange((ev,ss)=>{const u=ss&&ss.user;if(u&&u.email===SUPER&&!window.ON){window.ON=1;setTimeout(()=>{$('#gate').style.display='none';$('#app').style.display='block';listen(render,1);sub('sessions',r=>{SS=r.map(d=>({id:d.id,exp:+d.exp})).sort((a,b)=>b.exp-a.exp);if(tab=='se')render()});render()},0)}});
 
 </script></body></html>
