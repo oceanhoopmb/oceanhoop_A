@@ -403,9 +403,9 @@ async function flip(){
   catch(e){toast('切换失败：'+e.name)}
 }
 let snaps=[],holdSave=false,rsj=null;
-function snap(){holdSave=false;$('#rs')&&($('#rs').hidden=true);snaps.push({a:[S.a.s,S.a.f],b:[S.b.s,S.b.f],hid});if(snaps.length>30)snaps.shift()}
+function snap(){holdSave=false;$('#rs')&&($('#rs').hidden=true);snaps.push({a:[S.a.s,S.a.f],b:[S.b.s,S.b.f],hid,pp:{...PP}});if(snaps.length>30)snaps.shift()}
 function undo(){const x=snaps.pop();if(!x){toast('没有可撤销的操作');return}
-  S.a.s=x.a[0];S.a.f=x.a[1];S.b.s=x.b[0];S.b.f=x.b[1];H=H.filter(h=>!(h.auto&&h.id>x.hid));renderH();upd();toast('已撤销')}
+  S.a.s=x.a[0];S.a.f=x.a[1];S.b.s=x.b[0];S.b.f=x.b[1];PP=x.pp||PP;LASTEV={id:++evid,undo:true};H=H.filter(h=>!(h.auto&&h.id>x.hid));renderH();upd();toast('已撤销')}
 function save(){if(holdSave)return;try{localStorage.setItem('ohS',JSON.stringify({a:S.a,b:S.b,ev:S.ev,per:S.per,left:leftNow(),code}))}catch(e){}}
 function restore(){
   try{const j=JSON.parse(localStorage.getItem('ohS')||'null');
@@ -440,14 +440,16 @@ function keys(){
 /* ================= 控制台端 ================= */
 ['a','b'].forEach(k=>{
   $('#p'+k).innerHTML=`<div class="th" style="border-color:var(--c${k})"><b id="n${k}"></b><div class="big" id="s${k}">0</div></div>
+  <select id="pl${k}" style="width:100%;margin-top:6px"><option value="">得分球员（可不选）</option></select>
   <div class="g3">${[1,2,3].map(n=>`<button class="sc" style="background:var(--c${k});color:var(--ct${k})" onclick="sc('${k}',${n})">+${n}</button>`).join('')}</div>
   <div class="g3">${[1,2,3].map(n=>`<button class="sc m" onclick="sc('${k}',-${n})">−${n}</button>`).join('')}</div>
   <div class="fr"><button class="fl" id="f${k}" onpointerdown="fdown('${k}')" onpointerup="fup('${k}')" onpointerleave="fcancel()" oncontextmenu="return false">0</button><span class="mut">犯规：点一下 +1，长按 −1</span></div>`;
 });
+let PP={},LASTEV=null,evid=0;
 let H=[],hid=0,segs=[],segRec=null,segTimer=null,ft=null,fLong=false;
 function initCon(){
   setInterval(()=>{if(S.run&&leftNow()<=0){S.left=0;S.run=false;upd();toast('本节时间到');beep()}ctUpd()},200);
-  restore();setInterval(sync,1000);upd();renderH();startSegs();setInterval(bufSt,1000);keys();wl();$('#mon').ondblclick=()=>{const m=$('#mon');m.requestFullscreen&&m.requestFullscreen()};
+  $('#mon').insertBefore(rc,$('#mph'));rc.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000';restore();setInterval(sync,1000);upd();renderH();startSegs();setInterval(bufSt,1000);keys();wl();$('#mon').ondblclick=()=>{const m=$('#mon');m.requestFullscreen&&m.requestFullscreen()};
 }
 function sync(){if(connected())dc.send(JSON.stringify({t:'st',S:{a:S.a,b:S.b,ev:S.ev,per:S.per,left:leftNow(),run:S.run}}))}
 function ctUpd(){$('#ct').textContent=fmt(leftNow())}
@@ -458,7 +460,7 @@ function upd(){
 }
 function sc(k,n){
   snap();navigator.vibrate&&navigator.vibrate(15);S[k].s=Math.max(0,S[k].s+n);
-  if(n>0){const ty=['','罚球','两分球','三分球'][n];S.lt=S.lt||{};S.lt[k]=ty;addClip(k,ty,true)}
+  {const sel=$('#pl'+k),pl=sel?sel.value:'';if(n>0){const ty=['','罚球','两分球','三分球'][n];S.lt=S.lt||{};S.lt[k]=ty;addClip(k,ty,true);LASTEV={id:++evid,k,n,pl,team:S[k].n,clock:fmt(leftNow()),per:S.per};if(pl){PP[pl]=(PP[pl]||0)+n;toast(pl+' +'+n)}if(sel)sel.value=''}else if(pl){PP[pl]=Math.max(0,(PP[pl]||0)+n);sel.value=''}}
   upd();
 }
 function fdown(k){fLong=false;ft=setTimeout(()=>{fLong=true;snap();S[k].f=Math.max(0,S[k].f-1);upd();toast('犯规 −1')},600)}
@@ -468,7 +470,7 @@ function clk(){if(leftNow()<=0)return;S.left=leftNow();S.at=performance.now();S.
 function per(d){S.per=Math.max(1,S.per+d);if(d>0)rstClk();else upd()}
 function rstClk(){S.run=false;S.left=(+$('#len').value||10)*60000;S.at=performance.now();upd()}
 let rstT=0;
-function rstAll(){if(Date.now()-rstT<3000){S.a.s=S.b.s=S.a.f=S.b.f=0;snaps=[];rstT=0;upd();toast('已清零')}else{rstT=Date.now();toast('再点一次确认清零比分和犯规')}}
+function rstAll(){if(Date.now()-rstT<3000){S.a.s=S.b.s=S.a.f=S.b.f=0;snaps=[];PP={};LASTEV={id:++evid,undo:true};rstT=0;upd();toast('已清零')}else{rstT=Date.now();toast('再点一次确认清零比分和犯规')}}
 $('#na').oninput=e=>{S.a.n=e.target.value||'主队';upd()};$('#nb').oninput=e=>{S.b.n=e.target.value||'客队';upd()};
 $('#ca').oninput=e=>{S.a.c=e.target.value;upd()};$('#cbc').oninput=e=>{S.b.c=e.target.value;upd()};
 $('#ev').oninput=e=>{S.ev=e.target.value;upd()};$('#len').onchange=()=>{if(!S.run)rstClk()};
@@ -496,12 +498,12 @@ function newSeg(st){
 }
 const rc=document.createElement('canvas'),rcx=rc.getContext('2d');rc.width=1280;rc.height=720;
 const pickC=()=>['video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm','video/mp4;codecs=avc1','video/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
-let rstream=null;
+let rstream=null,RP=false;
 function syncAudio(ms){if(!rstream)return;const cur=rstream.getAudioTracks(),nw=ms.getAudioTracks();if(nw.length&&(cur.length!==nw.length||cur[0]!==nw[0])){cur.forEach(t=>rstream.removeTrack(t));nw.forEach(t=>rstream.addTrack(t))}}
 function startSegs(){
   if(!window.MediaRecorder||!rc.captureStream){toast('此浏览器不支持录制回放');return}
   if(rstream)return;
-  setInterval(()=>{const v=$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}board(rcx)},1000/30);
+  setInterval(()=>{const v=RP?$('#rv'):$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}board(rcx);if(RP){rcx.fillStyle='rgba(217,58,58,.92)';rcx.fillRect(1086,16,178,34);rcx.fillStyle='#fff';rcx.font='bold 20px sans-serif';rcx.textAlign='center';rcx.textBaseline='middle';rcx.fillText('▶ 回放 REPLAY',1175,33)}},1000/30);
   rstream=rc.captureStream(30);mime=pickC();segRec=newSeg(rstream);
   segTimer=setInterval(()=>{const o=segRec;segRec=newSeg(rstream);try{o.stop()}catch(e){}},3000);
 }
@@ -541,9 +543,9 @@ async function playH(h,cb){lastH=h;localPlay(h,cb)}
 function playBlobs(bl,tr,cb){
   const v=$('#rv'),urls=bl.map(b=>URL.createObjectURL(b));let i=0,fin=false;
   tr=tr||{off:0,dur:1e9,cum:[]};
-  const finish=()=>{if(fin)return;fin=true;v.onended=v.onerror=v.ontimeupdate=null;try{v.pause()}catch(e){}curFin=null;cb&&cb()};
+  const finish=()=>{if(fin)return;fin=true;v.onended=v.onerror=v.ontimeupdate=null;try{v.pause()}catch(e){}curFin=null;RP=false;cb&&cb()};
   curFin=cb?finish:null;
-  $('#modal').style.display='flex';
+  $('#modal').style.display='flex';RP=true;
   const load=n=>{v.src=urls[n];v.onloadedmetadata=()=>{if(n===0&&tr.off>0.3){try{v.currentTime=tr.off}catch(e){}}};v.play().catch(()=>{})};
   const nx=()=>{if(++i<urls.length)load(i);else finish()};
   v.onended=nx;v.onerror=nx;
@@ -567,7 +569,7 @@ function playAll(){
   next();
 }
 function skipNext(){curFin&&curFin()}
-function closeRv(){const v=$('#rv');curFin=null;v.onended=v.onerror=v.ontimeupdate=null;v.pause();v.removeAttribute('src');$('#modal').style.display='none'}
+function closeRv(){const v=$('#rv');curFin=null;RP=false;v.onended=v.onerror=v.ontimeupdate=null;v.pause();v.removeAttribute('src');$('#modal').style.display='none'}
 function dlId(id){
   const h=H.find(x=>x.id==id),c=h.blobs?h.blobs.map(b=>({blob:b})):clipOf(h);if(!c.length){toast('请先点 ▶ 回放一次取回片段，再下载');return}
   c.forEach((s,i)=>setTimeout(()=>{const a=document.createElement('a');a.href=URL.createObjectURL(s.blob);a.download=`highlight-${id}-part${i+1}.${(s.blob.type||mime).includes('mp4')?'mp4':'webm'}`;a.click()},i*400));
@@ -583,19 +585,24 @@ function openS(){window.ON=1;$('#gate').style.display='none';
  $('#land').insertAdjacentHTML('afterbegin','<div class="f"><b>比赛</b><select id="mpick" style="flex:1"></select></div>');
  $('#con').insertAdjacentHTML('beforeend','<details class="box" id="dpbox" style="margin-top:8px"><summary><b>资料录入（首发 / 球员数据 / 结束比赛 / 申请）</b></summary><div id="dp"></div></details>');
  sub('league',r=>{const x=r.find(y=>y.id=='main');if(x){LG=x.data;fillPick()}});$('#mpick').onchange=pickM}
+const fillPl=(k,t)=>{const e=$('#pl'+k);if(e)e.innerHTML='<option value="">得分球员（可不选）</option>'+(t.roster||[]).map(p=>`<option>${esc(p.n)}</option>`).join('')};
 function fillPick(){const p=$('#mpick'),v=p.value;p.innerHTML=LG.matches.map(m=>`<option value="${m.id}">${m.d} ${esc(tx(m.h).name)} vs ${esc(tx(m.a).name)}</option>`).join('');if(v)p.value=v;pickM()}
 async function pickM(){MID=$('#mpick').value;if(!MID)return;const m=LG.matches.find(x=>x.id==MID),a=tx(m.h),b=tx(m.a);$('#code').value=MID.toLowerCase().replace(/[^a-z0-9]/g,'');
- S.a.n=a.name;S.b.n=b.name;$('#na').value=a.name;$('#nb').value=b.name;S.ev=$('#ev').value=a.venue||'';if(typeof upd==='function'&&role==='con')upd();
+ S.a.n=a.name;S.b.n=b.name;$('#na').value=a.name;$('#nb').value=b.name;S.ev=$('#ev').value=a.venue||'';fillPl('a',a);fillPl('b',b);if(typeof upd==='function'&&role==='con')upd();
  let d={};try{const r=await sb.from('md').select('data').eq('id',MID).maybeSingle();d=r.data?r.data.data:{}}catch(e){}const lu=d.lineup||{},st=d.stats||{};
  $('#dp').innerHTML=`<div class="f"><button class="${LIVEON?'':'p'}" id="lvb" onclick="LIVEON=!LIVEON;this.textContent=LIVEON?'直播入口：开（点击关闭）':'直播入口：关（点击开启）';sync()">直播入口：开（点击关闭）</button><button class="d" onclick="finM()">结束比赛并写入最终比分</button></div>
  <div class="f" style="align-items:flex-start">${[['h',m.h],['a',m.a]].map(([k,t])=>`<div style="flex:1;min-width:200px"><b>${esc(tx(t).name)}</b> <span class="mut">勾选 5 名首发</span>${tx(t).roster.map(p=>`<label style="display:flex;gap:6px;padding:3px 0"><input type="checkbox" class="lu${k}" value="${esc(p.n)}" ${(lu[k]||[]).includes(p.n)?'checked':''}> ${esc(p.n)} <span class="mut">${esc(p.pos||'')}</span></label>`).join('')}</div>`).join('')}</div><div class="f"><button class="p" onclick="saveLu()">确认首发阵容</button></div>
  <table style="width:100%;margin-top:8px"><tr><th align="left">球员</th><th>得分</th><th>篮板</th><th>助攻</th></tr>${[...tx(m.h).roster,...tx(m.a).roster].map(p=>`<tr><td>${esc(p.n)}</td>${['pts','reb','ast'].map(k=>`<td><input type="number" min="0" style="width:60px" data-n="${esc(p.n)}" data-k="${k}" value="${(st[p.n]||{})[k]??''}"></td>`).join('')}</tr>`).join('')}</table><div class="f"><button class="p" onclick="saveSt()">保存球员数据</button></div>
  <div class="mut" style="margin-top:8px">球队、主场、名单、赛程只有最高管理员能改。需要修改请提交申请：</div><textarea id="rqt" rows="3" style="width:100%" placeholder="例如：Penang Waves 主场改为 ……"></textarea><div class="f"><button onclick="sendRq()">提交给最高管理员</button></div>`}
 function saveLu(){const g=k=>[...document.querySelectorAll('.lu'+k+':checked')].map(x=>x.value),h=g('h'),a=g('a');if(h.length!=5||a.length!=5)return toast('每队需恰好选 5 人');svv('md',MID,{lineup:{h,a}})}
-function saveSt(){const o={};document.querySelectorAll('[data-n]').forEach(i=>{if(i.value==='')return;(o[i.dataset.n]=o[i.dataset.n]||{})[i.dataset.k]=+i.value});svv('md',MID,{stats:o})}
-function finM(){if(!confirm('确认结束比赛并把当前比分写为最终比分？'))return;LIVEON=false;svv('md',MID,{score:[S.a.s,S.b.s],fin:true});svv('live',MID,{on:false,s:[S.a.s,S.b.s],at:Date.now()})}
+function saveSt(){const o={};document.querySelectorAll('[data-n]').forEach(i=>{if(i.value==='')return;(o[i.dataset.n]=o[i.dataset.n]||{})[i.dataset.k]=+i.value});return svv('md',MID,{stats:o})}
+async function finM(){if(!confirm('确认结束比赛并把当前比分写为最终比分？'))return;LIVEON=false;
+ /* 把直播时记录的球员得分自动填入数据表（已手填的不覆盖） */
+ document.querySelectorAll('[data-k="pts"]').forEach(i=>{const v=PP[i.dataset.n];if(i.value===''&&v)i.value=v});
+ if([...document.querySelectorAll('[data-n]')].some(i=>i.value!==''))try{await saveSt()}catch(e){}
+ await svv('md',MID,{score:[S.a.s,S.b.s],fin:true});svv('live',MID,{on:false,s:[S.a.s,S.b.s],at:Date.now()})}
 function sendRq(){const t=$('#rqt').value.trim();if(!t)return;sb.from('reqs').insert({id:'r'+Date.now(),data:{text:t,ts:Date.now(),done:false,by:'staff'}}).then(({error})=>{if(error)return toast('提交失败：'+error.message);$('#rqt').value='';toast('已提交')})}
-const _sync=sync;sync=function(){_sync();if(role!=='con'||!MID)return;const j=JSON.stringify([LIVEON,S.a.s,S.b.s,S.a.f,S.b.f,S.per,S.run,S.run?0:Math.round(leftNow()/1000)]);if(j===lastJ&&Date.now()-lastT<10000)return;lastJ=j;lastT=Date.now();
- sb.from('live').upsert({id:MID,data:{on:LIVEON,s:[S.a.s,S.b.s],f:[S.a.f,S.b.f],per:S.per,left:leftNow(),run:S.run,at:Date.now()}}).then(()=>{})};
+const _sync=sync;sync=function(){_sync();if(role!=='con'||!MID)return;const j=JSON.stringify([LIVEON,S.a.s,S.b.s,S.a.f,S.b.f,S.per,S.run,S.run?0:Math.round(leftNow()/1000),LASTEV&&LASTEV.id]);if(j===lastJ&&Date.now()-lastT<10000)return;lastJ=j;lastT=Date.now();
+ sb.from('live').upsert({id:MID,data:{on:LIVEON,s:[S.a.s,S.b.s],f:[S.a.f,S.b.f],per:S.per,left:leftNow(),run:S.run,at:Date.now(),last:LASTEV||null,pp:PP}}).then(()=>{})};
 </script>
 </body></html>
