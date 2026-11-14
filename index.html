@@ -199,12 +199,12 @@ const LVSEEN={},FEED={};let LVINIT=false;
 /* 记分员每次记录得分，这里实时弹跳提示（只在正在看该场比赛详情页时弹出） */
 function onLive(){Object.keys(LVm).forEach(id=>{const l=LVm[id]&&LVm[id].last;if(!l)return;
  if(LVSEEN[id]===undefined&&!LVINIT){LVSEEN[id]=l.id;return}if(LVSEEN[id]===l.id)return;LVSEEN[id]=l.id;
- if(l.undo||!(l.n>0))return;(FEED[id]=FEED[id]||[]).unshift(l);if(FEED[id].length>12)FEED[id].pop();popUp(id,l)});LVINIT=true}
+ if(l.undo||!l.pl)return;(FEED[id]=FEED[id]||[]).unshift(l);if(FEED[id].length>12)FEED[id].pop();popUp(id,l)});LVINIT=true}
 function popUp(id,l){if(document.getElementById('detailPage').classList.contains('hidden')||!M[cur]||M[cur].id!==id)return;const e=document.getElementById('pop');
- e.innerHTML=`<b>🏀 ${esH(l.pl||l.team)} +${l.n}</b><small>${esH(l.team)} · 第${l.per}节 ${esH(l.clock)}</small>`;e.classList.remove('on');void e.offsetWidth;e.classList.add('on')}
+ e.innerHTML=`<b>🏀 ${esH(l.pl||l.team)} ${l.n>0?'+'+l.n:esH(l.type||'')}</b><small>${esH(l.team)} · 第${l.per}节 ${esH(l.clock)}</small>`;e.classList.remove('on');void e.offsetWidth;e.classList.add('on')}
 function renderFeed(){const e=document.getElementById('liveFeed');if(!e||!M[cur])return;const id=M[cur].id,f=FEED[id]||[],pp=(LVm[id]&&LVm[id].pp)||{},top=Object.entries(pp).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,5);
  e.innerHTML=(top.length?`<div style="margin-bottom:6px;font-weight:800;color:var(--orange);font-size:11px">本场得分榜</div>`+top.map(([n,p])=>`<div class="minirow"><span style="color:var(--white)">${esH(n)}</span><b>${p} 分</b></div>`).join('')+`<div style="margin:12px 0 4px;font-weight:800;color:var(--orange);font-size:11px">最新得分</div>`:'')
- +(f.length?f.map(x=>`<div class="feeditem"><span class="pts">+${x.n}</span><span>${esH(x.pl||x.team)}</span><small>${esH(x.team)} · 第${x.per}节 ${esH(x.clock)}</small></div>`).join(''):'<div>比赛直播中，每次得分会实时出现在这里。</div>')}
+ +(f.length?f.map(x=>`<div class="feeditem"><span class="pts">${x.n>0?'+'+x.n:esH(x.type||'★')}</span><span>${esH(x.pl||x.team)}</span><small>${esH(x.team)} · 第${x.per}节 ${esH(x.clock)}</small></div>`).join(''):'<div>比赛直播中，每次得分会实时出现在这里。</div>')}
 sub('live',r=>{LVm={};r.forEach(d=>LVm[d.id]=d.data);onLive();refresh()});
 setInterval(()=>{if(LG)refresh()},30000);
 </script>
