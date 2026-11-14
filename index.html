@@ -31,6 +31,11 @@ main{max-width:1280px;margin:auto;padding:30px 28px 70px}.eyebrow{color:var(--or
 .pbig{display:flex;gap:14px;align-items:center;margin-bottom:12px}.pbig .portrait{width:64px;height:64px;margin:0;font-size:22px}.pbig h4{margin:0 0 4px;font-size:15px}.statbox{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}.statbox div{background:#1a263b;border-radius:8px;padding:9px 4px}.statbox b{display:block;font-size:16px}.statbox small{font-size:9px;color:var(--muted)}
 .tag{display:inline-block;font-size:10px;font-weight:900;padding:3px 8px;border-radius:5px;background:#2b3850;color:var(--orange);margin-left:8px;vertical-align:middle}
 @media(max-width:850px){.g2{grid-template-columns:1fr}.hc{height:300px}}
+#pop{position:fixed;left:50%;top:84px;transform:translateX(-50%) scale(0);z-index:60;background:linear-gradient(135deg,#ff7138,#e24a1c);color:#fff;border-radius:16px;padding:12px 22px;text-align:center;box-shadow:0 10px 30px #000a;pointer-events:none;opacity:0}#pop b{display:block;font-size:20px}#pop small{font-size:11px;opacity:.9}
+#pop.on{animation:bnc 3.5s ease forwards}
+@keyframes bnc{0%{opacity:0;transform:translate(-50%,-40px) scale(.5)}8%{opacity:1;transform:translate(-50%,6px) scale(1.18)}14%{transform:translate(-50%,-8px) scale(.96)}20%{transform:translate(-50%,0) scale(1.05)}26%{transform:translate(-50%,0) scale(1)}85%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-20px) scale(.9)}}
+.feeditem{display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #263249;font-size:12px;color:var(--white)}.feeditem:first-child{animation:fin .6s ease}.feeditem .pts{background:var(--orange);color:#1b100b;font-weight:900;border-radius:6px;padding:2px 7px}.feeditem small{margin-left:auto;color:var(--muted)}
+@keyframes fin{0%{transform:translateY(-10px) scale(.96);background:#3a2a20}100%{transform:none;background:transparent}}
 </style>
 </head>
 <body>
@@ -63,6 +68,7 @@ main{max-width:1280px;margin:auto;padding:30px 28px 70px}.eyebrow{color:var(--or
   <div class="panel"><h3>替补球员与教练</h3><div class="bench" id="bench"></div></div>
   <div class="panel"><h3>伤病 / 禁赛名单</h3><div id="injuries" style="font-size:11px;color:var(--muted)">目前没有已公布的伤病或禁赛资料。</div></div>
  </div><div>
+  <div class="panel"><h3>实时得分动态 <span class="tag">LIVE</span></h3><div id="liveFeed" style="font-size:12px;color:var(--muted)">比赛直播中，每次得分会实时出现在这里。</div></div>
   <div class="panel"><h3>比赛分析与预测</h3><div class="predictgrid"><div class="predict"><small>你认为谁会获胜？</small><b><select id="winnerPick" style="background:transparent;color:white;border:0;max-width:100%;font-weight:800"><option>Kuala Lumpur Stars</option><option>Penang Waves</option></select></b></div><div class="predict"><small>谁会率先得分？</small><b><select id="firstPick" style="background:transparent;color:white;border:0;max-width:100%;font-weight:800"><option>Kuala Lumpur Stars</option><option>Penang Waves</option></select></b></div></div><button class="orangebtn" style="margin-top:12px;width:100%" onclick="savePrediction()">提交我的预测</button><div id="predictionMsg" style="font-size:10px;color:var(--green);margin-top:8px"></div></div>
   <div class="panel"><h3>球队近期表现</h3><div class="minirow"><span>主队连胜</span><b>0 场</b></div><div class="minirow"><span>客队连胜</span><b>0 场</b></div><div class="minirow"><span>主队场均得分</span><b>0.0</b></div><div class="minirow"><span>客队场均得分</span><b>0.0</b></div><div class="minirow"><span>历史交手</span><b>暂无记录</b></div></div>
   <div class="panel"><h3>关键人物</h3><div id="keyPlayers"></div></div>
@@ -159,7 +165,7 @@ $("dScore").textContent=m.s?m.s[0]+" : "+m.s[1]:m.live?m.ls[0]+" : "+m.ls[1]:"VS
 $("dDate").textContent="📅 "+m.d;$("dTime").textContent="◷ "+m.t;$("dVenue").textContent="⌖ "+m.v;$("infoVenue").textContent=m.v;$("infoDate").textContent=m.d;$("infoTime").textContent=m.t;
 $("winnerPick").innerHTML=$("firstPick").innerHTML=`<option>${a.name}</option><option>${b.name}</option>`;
 $("keyPlayers").innerHTML=[a,b].map(t=>`<div style="display:flex;align-items:center;gap:10px;margin:12px 0"><div class="portrait" style="margin:0">${ini(t.best.n)}</div><div><b style="font-size:11px">${t.best.n}</b><div style="font-size:9px;color:var(--muted)">${t.name} · 关键球员</div></div><span style="margin-left:auto;font-size:10px;color:var(--muted)">${t.best.pts} 分 · ${t.best.reb} 板 · ${t.best.ast} 助</span></div>`).join("");
-$("predictionMsg").textContent="";const sc_=document.querySelector(".streamcontent");sc_.innerHTML=m.live?`<button class="play" onclick="watch('${m.id}')">▶</button><b>直播中</b><small>点击观看，可横屏全屏</small>`:`<button class="play" onclick="alert('比赛开始后即可观看直播。')">▶</button><b>直播尚未开始</b><small>比赛开始后，直播入口将在这里显示</small>`;setLineup(MDm[m.id]&&MDm[m.id].lineup?"confirmed":"pred")}
+$("predictionMsg").textContent="";const sc_=document.querySelector(".streamcontent");sc_.innerHTML=m.live?`<button class="play" onclick="watch('${m.id}')">▶</button><b>直播中</b><small>点击观看，可横屏全屏</small>`:`<button class="play" onclick="alert('比赛开始后即可观看直播。')">▶</button><b>直播尚未开始</b><small>比赛开始后，直播入口将在这里显示</small>`;setLineup(MDm[m.id]&&MDm[m.id].lineup?"confirmed":"pred");renderFeed()}
 function setLineup(mode){const m=M[cur],a={...T[m.h]},b={...T[m.a]},$=id=>document.getElementById(id),lu=MDm[m.id]&&MDm[m.id].lineup;
 if(mode!="pred"&&lu&&lu.h&&lu.h.length){const f=(t,l)=>{t.st=t.pl.filter(p=>l.includes(p.n));t.bn=t.pl.filter(p=>!l.includes(p.n))};f(a,lu.h);f(b,lu.a)}
 $("predBtn").classList.toggle("active",mode=="pred");$("confirmBtn").classList.toggle("active",mode!="pred");
@@ -188,8 +194,19 @@ const rotW=()=>document.getElementById('ov').classList.toggle('rot'),muW=b=>{con
 async function fsW(){try{await document.getElementById('ov').requestFullscreen();await screen.orientation.lock('landscape')}catch(e){rotW()}}
 sub('league',r=>{const x=r.find(y=>y.id=='main');if(x){LG=x.data;refresh()}});
 sub('md',r=>{MDm={};r.forEach(d=>MDm[d.id]=d.data);refresh()});
-sub('live',r=>{LVm={};r.forEach(d=>LVm[d.id]=d.data);refresh()});
+const esH=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LVSEEN={},FEED={};let LVINIT=false;
+/* 记分员每次记录得分，这里实时弹跳提示（只在正在看该场比赛详情页时弹出） */
+function onLive(){Object.keys(LVm).forEach(id=>{const l=LVm[id]&&LVm[id].last;if(!l)return;
+ if(LVSEEN[id]===undefined&&!LVINIT){LVSEEN[id]=l.id;return}if(LVSEEN[id]===l.id)return;LVSEEN[id]=l.id;
+ if(l.undo||!(l.n>0))return;(FEED[id]=FEED[id]||[]).unshift(l);if(FEED[id].length>12)FEED[id].pop();popUp(id,l)});LVINIT=true}
+function popUp(id,l){if(document.getElementById('detailPage').classList.contains('hidden')||!M[cur]||M[cur].id!==id)return;const e=document.getElementById('pop');
+ e.innerHTML=`<b>🏀 ${esH(l.pl||l.team)} +${l.n}</b><small>${esH(l.team)} · 第${l.per}节 ${esH(l.clock)}</small>`;e.classList.remove('on');void e.offsetWidth;e.classList.add('on')}
+function renderFeed(){const e=document.getElementById('liveFeed');if(!e||!M[cur])return;const id=M[cur].id,f=FEED[id]||[],pp=(LVm[id]&&LVm[id].pp)||{},top=Object.entries(pp).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,5);
+ e.innerHTML=(top.length?`<div style="margin-bottom:6px;font-weight:800;color:var(--orange);font-size:11px">本场得分榜</div>`+top.map(([n,p])=>`<div class="minirow"><span style="color:var(--white)">${esH(n)}</span><b>${p} 分</b></div>`).join('')+`<div style="margin:12px 0 4px;font-weight:800;color:var(--orange);font-size:11px">最新得分</div>`:'')
+ +(f.length?f.map(x=>`<div class="feeditem"><span class="pts">+${x.n}</span><span>${esH(x.pl||x.team)}</span><small>${esH(x.team)} · 第${x.per}节 ${esH(x.clock)}</small></div>`).join(''):'<div>比赛直播中，每次得分会实时出现在这里。</div>')}
+sub('live',r=>{LVm={};r.forEach(d=>LVm[d.id]=d.data);onLive();refresh()});
 setInterval(()=>{if(LG)refresh()},30000);
 </script>
 <style>#ov{position:fixed;inset:0;background:#000;z-index:50;display:none;color:#fff}#ov video{width:100%;height:100%;object-fit:contain;background:#000}#vbox{position:absolute;inset:0}#ov.rot #vbox{inset:auto;top:0;left:100%;width:100vh;height:100vw;transform-origin:top left;transform:rotate(90deg)}#ovb{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;z-index:2}#ovb button{background:rgba(0,0,0,.6);color:#fff;padding:9px 12px;border-radius:8px}</style>
-<div id="ov"><div id="vbox"><video id="vv" autoplay playsinline muted></video></div><div id="ovb"><button onclick="closeW()">‹ 退出</button><button onclick="rotW()">⟳ 横屏</button><button onclick="fsW()">⛶ 全屏</button><button id="mu" onclick="muW(this)">🔊 开声音</button><span id="vst" style="font-size:12px"></span></div></div></body></html>
+<div id="ov"><div id="vbox"><video id="vv" autoplay playsinline muted></video></div><div id="ovb"><button onclick="closeW()">‹ 退出</button><button onclick="rotW()">⟳ 横屏</button><button onclick="fsW()">⛶ 全屏</button><button id="mu" onclick="muW(this)">🔊 开声音</button><span id="vst" style="font-size:12px"></span></div></div><div id="pop"></div></body></html>
