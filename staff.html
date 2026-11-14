@@ -150,6 +150,7 @@ const gather=(p=pc)=>new Promise(r=>{if(p.iceGatheringState==='complete')return 
 async function makeOffer(){
   offerT=Date.now();newPC();
   out.getTracks().forEach(t=>pc.addTrack(t,out));
+  pc.getSenders().forEach(x=>{if(x.track&&x.track.kind==='video'){try{x.track.contentHint='motion';const p=x.getParameters();p.encodings=p.encodings&&p.encodings.length?p.encodings:[{}];p.encodings[0].maxBitrate=2500000;p.encodings[0].maxFramerate=24;p.degradationPreference='maintain-framerate';x.setParameters(p).catch(()=>{})}catch(e){}}});
   setDC(pc.createDataChannel('c'));
   await pc.setLocalDescription(await pc.createOffer());await gather();
   return JSON.stringify(pc.localDescription);
@@ -241,8 +242,8 @@ async function cam(){
     try{stream=await navigator.mediaDevices.getUserMedia({video:v,audio:true})}
     catch(e){if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;stream=await navigator.mediaDevices.getUserMedia({video:v,audio:false})}
     const pv=$('#pv');pv.srcObject=stream;await pv.play();
-    out=cv.captureStream(30);stream.getAudioTracks().forEach(t=>out.addTrack(t));
-    setInterval(camDraw,1000/30);
+    out=cv.captureStream(24);stream.getAudioTracks().forEach(t=>out.addTrack(t));
+    setInterval(camDraw,1000/24);
     $('#cstart').hidden=true;$('#brec').hidden=false;$('#bflip').hidden=false;wl();camStat();
     setInterval(()=>{camStat();if(connected()){const st=stream.getVideoTracks()[0].getSettings();dc.send(JSON.stringify({t:'info',w:st.width,h:st.height,rec:!!(rec&&rec.state==='recording'),rt:(performance.now()-recT0)/1000,cb:csegs.length}))}},1000);
     if(nr)onHello();
@@ -278,7 +279,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function camSegStart(){
   if(cTimer||!out||!window.MediaRecorder)return;
   cmime=pickC();
-  const mk=()=>{const r=new MediaRecorder(out,{mimeType:cmime,videoBitsPerSecond:1200000}),parts=[],start=now();
+  const mk=()=>{const r=new MediaRecorder(out,{mimeType:cmime,videoBitsPerSecond:800000}),parts=[],start=now();
     r.ondataavailable=e=>e.data.size&&parts.push(e.data);
     r.onstop=()=>{const b=new Blob(parts,{type:cmime});if(b.size>0)csegs.push({start,end:now(),blob:b});cprune()};
     r.start();return r};
@@ -459,7 +460,7 @@ let rrT=0;function remoteRec(){if(!connected()){toast('未连线');return}if(S.c
 
 /* --- 控制台收到的直播画面：每3秒一段独立视频，用于精彩回放 --- */
 function newSeg(st){
-  const r=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:2000000}),parts=[],start=now();
+  const r=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:1000000}),parts=[],start=now();
   r.ondataavailable=e=>e.data.size&&parts.push(e.data);
   r.onstop=()=>{const b=new Blob(parts,{type:mime});if(b.size>0)segs.push({start,end:now(),blob:b});prune()};
   r.start();return r;
@@ -470,8 +471,8 @@ let rstream=null;
 function startSegs(){
   if(!window.MediaRecorder||!rc.captureStream){toast('此浏览器不支持录制回放');return}
   if(rstream)return;
-  setInterval(()=>{const v=$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}},1000/30);
-  rstream=rc.captureStream(30);mime=pickC();segRec=newSeg(rstream);
+  setInterval(()=>{const v=$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}},1000/15);
+  rstream=rc.captureStream(15);mime=pickC();segRec=newSeg(rstream);
   segTimer=setInterval(()=>{const o=segRec;segRec=newSeg(rstream);try{o.stop()}catch(e){}},3000);
 }
 function bufSt(){const w=Object.values(vpcs).filter(x=>x.pc.connectionState==='connected').length;$('#cw').textContent=w?'👁 '+w+' 位观众':'';const n=now(),a=segs.length?Math.round(n-segs[0].start):0;$('#bufst').textContent=`回放缓冲：${segs.length} 段，约 ${a} 秒${connected()?'':'（未连线）'}`}
