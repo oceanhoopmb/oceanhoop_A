@@ -53,10 +53,10 @@ input[type=color]{padding:0;width:44px;height:38px}
   <h1>🏀 OceanHoop 双设备直播</h1>
   <div class="mut">两台设备都打开本页面，输入<b>同一个配对码</b>：一台当摄像机，一台当控制台。</div>
   <div class="f"><label>配对码 <input id="code" maxlength="8" style="width:120px;font-size:18px;letter-spacing:2px"></label></div>
-  <button class="role p" onclick="start('cam')">📷 摄像机（手机）<small>拍摄、录影。画面带小记分牌，拍摄者只看干净画面</small></button>
+  <button class="role p" onclick="start('cam')">📷 摄像机（手机）<small>只负责拍摄和传送画面，不录影、不存储，手机更省电、画面更清晰</small></button>
   <button class="role" onclick="start('con')">🎮 控制台（电脑或另一台手机）<small>计分、计时、标记精彩、回放。每次得分自动截取前后片段</small></button>
   <button class="role" onclick="start('view')">👁 观众（看直播）<small>只看直播画面（含记分牌）。需控制台开着</small></button>
-  <details class="mut" style="margin-top:14px"><summary>使用说明</summary><ol style="padding-left:18px"><li>两台设备输入同一个配对码。手机选「摄像机」，电脑或另一台手机选「控制台」。</li><li>摄像机先点「开启摄像头」，控制台会自动连上；连不上时两端都点「手动配对」。</li><li>按 ● REC 开始录影，停止需要连点两次。手机请插电并保持亮屏。</li><li>每次得分自动截取片段；暂停时点「回放最近」或列表里的 ▶。</li><li>想像 App 一样全屏使用：在手机浏览器菜单里选「添加到主屏幕」。</li></ol></details>
+  <details class="mut" style="margin-top:14px"><summary>使用说明</summary><ol style="padding-left:18px"><li>两台设备输入同一个配对码。手机选「摄像机」，电脑或另一台手机选「控制台」。</li><li>摄像机先点「开启摄像头」，控制台会自动连上；连不上时两端都点「手动配对」。</li><li>录影在控制台电脑上进行：点「● 录制整场」，停止需要连点两次。手机请插电并保持亮屏。</li><li>每次得分自动截取片段；暂停时点「回放最近」或列表里的 ▶。</li><li>想像 App 一样全屏使用：在手机浏览器菜单里选「添加到主屏幕」。</li></ol></details>
 </div>
 
 <div id="cam" hidden>
@@ -67,7 +67,7 @@ input[type=color]{padding:0;width:44px;height:38px}
   <div id="cstart"><button class="p" onclick="cam()">开启摄像头</button><div id="cerr"></div></div>
   <div id="cdl"></div>
   <button id="cman" onclick="manual()">手动配对</button>
-  <button id="cbuf" onclick="togBuf()" style="position:absolute;left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(52px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.55);color:#fff;font-size:12px">回放缓冲：关（更流畅）</button>
+  
 </div>
 
 <div id="con" hidden>
@@ -80,7 +80,7 @@ input[type=color]{padding:0;width:44px;height:38px}
       <div id="clockbar"><button class="p" id="cb" onclick="clk()">▶ 开始</button><span id="ct">10:00</span><button onclick="per(-1)">节−</button><b id="cp">第1节</b><button onclick="per(1)">节+</button><button onclick="rstClk()">重设时间</button><button onclick="undo()">↩ 撤销</button></div>
       <div class="f"><select id="kind"><option value="auto">类型：自动（最近得分）</option><option>罚球</option><option>两分球</option><option>三分球</option><option>盖帽</option><option>抢断</option><option>精彩防守</option><option>其他</option></select>
         <button class="p" onclick="mark('a')">⭐主队</button><button class="p" style="background:#1496ad;border-color:#1496ad" onclick="mark('b')">⭐客队</button>
-        <button onclick="remoteRec()" id="rr">远程 ● 录影</button></div>
+        <button onclick="toggleCRec()" id="rr">● 录制整场（存到本机）</button></div>
       <div class="mut">快捷键（电脑）：Q/W/E 主队+1/+2/+3 · I/O/P 客队+1/+2/+3 · F/J 主/客犯规 · 空格 计时 · Z 撤销 · H 回放最近 · 双击画面全屏</div>
     </div>
     <div class="tp" id="pb"></div>
@@ -89,7 +89,7 @@ input[type=color]{padding:0;width:44px;height:38px}
     <div class="f" style="margin-top:0"><b>精彩回放</b><button class="p" onclick="replayLast()">⏪ 回放最近</button>
       <label class="mut"><input type="checkbox" id="autoc" checked> 得分自动截取 <select id="win"><option value="10,10">前10秒～后10秒</option><option value="10,5">前10秒～后5秒</option><option value="20,5">前20秒～后5秒</option><option value="20,10">前20秒～后10秒</option><option value="5,5">前5秒～后5秒</option></select></label></div>
     <div class="mut">每次主/客队得分（+1/+2/+3）都会自动生成片段；没有标记时，「回放最近」播放最近一次片段，没有片段则播放最近约18秒。</div>
-    <div class="f"><select id="flt" onchange="renderH()"><option value="all">显示：全部</option><option value="a">主队</option><option value="b">客队</option><option value="star">仅标星</option></select><button onclick="playAll()">▶ 连播当前列表</button></div><div class="mut" id="bufst"></div><div id="hl"></div>
+    <div class="f"><select id="flt" onchange="renderH()"><option value="all">显示：全部</option><option value="a">主队</option><option value="b">客队</option><option value="star">仅标星</option></select><button onclick="playAll()">▶ 连播当前列表</button></div><div class="mut" id="bufst"></div><div class="f" id="rdl"></div><div id="hl"></div>
   </div>
   <details class="box" style="margin-top:8px" open><summary><b>赛前设置</b></summary>
     <div class="f"><b>主队</b><input id="na" value="主队" style="flex:1"><input type="color" id="ca" value="#e8650f"></div>
@@ -143,7 +143,7 @@ function newPC(){
   pc=new RTCPeerConnection(ICE);
   pc.onconnectionstatechange=setStat;
   pc.ondatachannel=e=>setDC(e.channel);
-  pc.ontrack=e=>{ if(role!=='con')return; const ms=e.streams[0]||new MediaStream([e.track]); if(remote!==ms){remote=ms;closeViewers()}$('#mv').srcObject=ms;$('#mph').hidden=true;
+  pc.ontrack=e=>{ if(role!=='con')return; const ms=e.streams[0]||new MediaStream([e.track]); if(remote!==ms){remote=ms;closeViewers()}$('#mv').srcObject=ms;$('#mph').hidden=true;syncAudio(ms);
     $('#mv').play().catch(()=>{})};
   return pc;
 }
@@ -151,7 +151,7 @@ const gather=(p=pc)=>new Promise(r=>{if(p.iceGatheringState==='complete')return 
 async function makeOffer(){
   offerT=Date.now();newPC();
   out.getTracks().forEach(t=>pc.addTrack(t,out));
-  pc.getSenders().forEach(x=>{if(x.track&&x.track.kind==='video'){try{x.track.contentHint='detail';const p=x.getParameters();p.encodings=p.encodings&&p.encodings.length?p.encodings:[{}];p.encodings[0].maxBitrate=3000000;x.setParameters(p).catch(()=>{})}catch(e){}}});
+  pc.getSenders().forEach(x=>{if(x.track&&x.track.kind==='video'){try{const p=x.getParameters();p.encodings=p.encodings&&p.encodings.length?p.encodings:[{}];p.encodings[0].maxBitrate=4000000;x.setParameters(p).catch(()=>{})}catch(e){}}});
   setDC(pc.createDataChannel('c'));
   await pc.setLocalDescription(await pc.createOffer());await gather();
   return JSON.stringify(pc.localDescription);
@@ -163,11 +163,11 @@ async function takeOffer(txt){
 }
 const takeAnswer=txt=>{if(!pc||pc.signalingState!=='have-local-offer')return;return pc.setRemoteDescription(JSON.parse(txt)).catch(()=>{})}; /* 重复/过期的回复直接忽略 */
 function setDC(d){
-  dc=d;d.binaryType='arraybuffer';d.onopen=()=>{setStat();if(role==='con')sync();if(role==='cam')camSegStart();toast('✅ 已连线')};d.onclose=()=>{setStat();if(role==='cam')camSegStop()};
+  dc=d;d.binaryType='arraybuffer';d.onopen=()=>{setStat();if(role==='con')sync();toast('✅ 已连线')};d.onclose=()=>{setStat();if(role==='cam')camSegStop()};
   d.onmessage=e=>{if(typeof e.data!=='string'){rxChunk(e.data);return}let m;try{m=JSON.parse(e.data)}catch(x){return}if(m.t==='ev'||m.t==='get'||m.t==='clipstart'||m.t==='seg'||m.t==='clipend'){msgClip(m);return}
     if(m.t==='st'){Object.assign(S,m.S);S.at=performance.now();if(role==='cam')camStat()}
     else if(m.t==='rec'){m.on?startRec():stopRec()}
-    else if(m.t==='info'){$('#ci').textContent=`摄像机 ${m.w}×${m.h}${m.w>=1280?' ✅720P':' ⚠'} ${m.rec?'● 录影中 '+fmt(m.rt*1000):'未录影'} · 摄像机缓冲${m.cb||0}段`;S.camRec=m.rec;$('#rr').textContent=m.rec?'远程 ■ 停止录影':'远程 ● 录影'}};
+    else if(m.t==='info'){$('#ci').textContent=`摄像机 ${m.w}×${m.h}${m.w>=1280?' ✅720P':' ⚠'} `}};
 }
 function setStat(){
   const ok=connected();
@@ -216,7 +216,7 @@ function start(r){
 /* ================= 摄像机端 ================= */
 const cv=document.createElement('canvas');cv.width=1280;cv.height=720;const cx=cv.getContext('2d');
 let stream=null,out=null,rec=null,chunks=[],mime='',recT0=0,wake=null;
-function board(){
+function board(cx){
   const x=18,y=16,rw=190,cw=104,h=64;
   cx.fillStyle='rgba(8,14,30,.82)';cx.fillRect(x,y,rw+cw,h);cx.textBaseline='middle';
   [['a',0],['b',1]].forEach(([k,i])=>{const t=S[k],yy=y+i*32;
@@ -233,7 +233,7 @@ function board(){
 function camDraw(){
   const v=$('#pv');
   if(v.videoWidth)cx.drawImage(v,0,0,1280,720);else{cx.fillStyle='#000';cx.fillRect(0,0,1280,720)}
-  board();
+  board(cx);
 }
 async function cam(){
   $('#cerr').textContent='';
@@ -243,9 +243,9 @@ async function cam(){
     try{stream=await navigator.mediaDevices.getUserMedia({video:v,audio:true})}
     catch(e){if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;stream=await navigator.mediaDevices.getUserMedia({video:v,audio:false})}
     const pv=$('#pv');pv.srcObject=stream;await pv.play();
-    out=cv.captureStream(24);stream.getAudioTracks().forEach(t=>out.addTrack(t));
-    setInterval(camDraw,1000/24);
-    $('#cstart').hidden=true;$('#brec').hidden=false;$('#bflip').hidden=false;wl();camStat();
+    out=stream; /* 直接发送摄像头原始画面（硬件编码，更清晰、更低延迟、更省电） */
+    
+    $('#cstart').hidden=true;$('#bflip').hidden=false;wl();camStat();
     setInterval(()=>{camStat();if(connected()){const st=stream.getVideoTracks()[0].getSettings();dc.send(JSON.stringify({t:'info',w:st.width,h:st.height,rec:!!(rec&&rec.state==='recording'),rt:(performance.now()-recT0)/1000,cb:csegs.length}))}},1000);
     if(nr)onHello();
   }catch(e){
@@ -342,7 +342,7 @@ function doFetch(h){return new Promise(res=>{
   clearTimeout(pendT);pendT=setTimeout(()=>{if(pend){const r=pend.res;pend=null;rx=null;r(false)}},20000);
 })}
 const fetchClip=h=>fq=fq.then(()=>doFetch(h)).catch(()=>false);
-function sched(h){setTimeout(()=>prefetch(h),(h.post+4)*1000)}
+function sched(h){setTimeout(()=>{if(!H.includes(h))return;h.st=clipOf(h).length?'ok':'fail';renderH()},(h.post+4)*1000)}
 async function prefetch(h,retry){
   if(!H.includes(h))return;
   h.st='get';renderH();
@@ -350,7 +350,7 @@ async function prefetch(h,retry){
   if(ok&&h.partial&&!retry){h.st='rec';renderH();setTimeout(()=>prefetch(h,1),3500);return}
   h.st=ok?'ok':'fail';renderH();
 }
-function evSend(h){if(connected())dc.send(JSON.stringify({t:'ev',id:h.id,pre:h.pre,post:h.post}))}
+function evSend(h){}
 
 /* ===== 观众：控制台转发直播画面 ===== */
 let vid='v'+Math.random().toString(36).slice(2,8),vp=null,vbuf={},remote=null,vpcs={},vT=0;
@@ -369,7 +369,7 @@ async function onVHello(d){
   if(ex&&(ex.pc.connectionState==='connected'||Date.now()-ex.t<12000))return;
   if(ex)try{ex.pc.close()}catch(e){}
   const p=new RTCPeerConnection(ICE);vpcs[d.vid]={pc:p,t:Date.now()};
-  remote.getTracks().forEach(t=>p.addTrack(t,remote));
+  const src=rstream||remote;src.getTracks().forEach(t=>p.addTrack(t,src)); /* 观众看到的是带记分牌的合成画面 */
   await p.setLocalDescription(await p.createOffer());await gatherP(p);
   vSend(d.vid,'o',JSON.stringify(p.localDescription),d.vid);
 }
@@ -398,7 +398,7 @@ async function flip(){
   try{const f=facing==='environment'?'user':'environment';
     const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:f},width:{ideal:1280},height:{ideal:720}},audio:false});
     stream.getVideoTracks().forEach(t=>t.stop());
-    stream=new MediaStream([...ns.getVideoTracks(),...stream.getAudioTracks()]);
+    stream=new MediaStream([...ns.getVideoTracks(),...stream.getAudioTracks()]);out=stream;if(pc)pc.getSenders().forEach(x=>{if(x.track&&x.track.kind==='video')x.replaceTrack(ns.getVideoTracks()[0]).catch(()=>{})});
     const pv=$('#pv');pv.srcObject=stream;await pv.play();facing=f;camStat();toast(f==='user'?'前置摄像头':'后置摄像头')}
   catch(e){toast('切换失败：'+e.name)}
 }
@@ -418,7 +418,7 @@ function doRestore(){const j=rsj;holdSave=false;Object.assign(S.a,j.a);Object.as
 function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.2;o.start();o.stop(c.currentTime+.8)}catch(e){}}
 let bkT=0;
 function goBack(){
-  if(rec&&rec.state==='recording'&&Date.now()-bkT>3000){bkT=Date.now();toast('正在录影！再点一次退出（未下载的录像会丢失）');return}
+  if((crAuto||(rec&&rec.state==='recording'))&&Date.now()-bkT>3000){bkT=Date.now();toast('正在录影！再点一次退出（未下载的录像会丢失）');return}
   try{save()}catch(e){}
   try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}
   try{pc&&pc.close()}catch(e){}
@@ -472,11 +472,24 @@ function rstAll(){if(Date.now()-rstT<3000){S.a.s=S.b.s=S.a.f=S.b.f=0;snaps=[];rs
 $('#na').oninput=e=>{S.a.n=e.target.value||'主队';upd()};$('#nb').oninput=e=>{S.b.n=e.target.value||'客队';upd()};
 $('#ca').oninput=e=>{S.a.c=e.target.value;upd()};$('#cbc').oninput=e=>{S.b.c=e.target.value;upd()};
 $('#ev').oninput=e=>{S.ev=e.target.value;upd()};$('#len').onchange=()=>{if(!S.run)rstClk()};
-let rrT=0;function remoteRec(){if(!connected()){toast('未连线');return}if(S.camRec&&Date.now()-rrT>3000){rrT=Date.now();toast('再点一次停止摄像机录影');return}dc.send(JSON.stringify({t:'rec',on:!S.camRec}))}
+let rrT=0,crAuto=false,crPart=0,crT=null,crRec=null;
+function toggleCRec(){if(crAuto){if(Date.now()-rrT<3000)stopCRec();else{rrT=Date.now();toast('再点一次停止录制')}}else startCRec()}
+function startCRec(){if(!rstream||!window.MediaRecorder){toast('此浏览器不能录制');return}if(!remote){toast('还没有摄像机画面');return}
+ crAuto=true;crPart=0;$('#rdl').innerHTML='';$('#rr').textContent='■ 停止录制（连点两次）';crNext()}
+/* 每 15 分钟自动切一段，每段结束后出现下载按钮 */
+function crNext(){const ch=[],my=++crPart,mt=mime,t0=Date.now();
+ crRec=new MediaRecorder(rstream,{mimeType:mt,videoBitsPerSecond:3000000});
+ crRec.ondataavailable=e=>e.data.size&&ch.push(e.data);
+ crRec.onstop=()=>{if(ch.length){const b=new Blob(ch,{type:mt}),u=URL.createObjectURL(b);$('#rdl').insertAdjacentHTML('beforeend',`<a href="${u}" download="oceanhoop-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}-p${my}.${mt.includes('mp4')?'mp4':'webm'}"><button class="p">⬇ 第${my}段（${(b.size/1048576).toFixed(0)}MB）</button></a>`)}
+  if(crAuto&&Date.now()-t0>1500)crNext();else if(crAuto){crAuto=false;toast('录制中断，请重新开始')}
+  if(!crAuto)$('#rr').textContent='● 录制整场（存到本机）'};
+ crRec.start(1000);clearTimeout(crT);crT=setTimeout(()=>{try{crRec.state==='recording'&&crRec.stop()}catch(e){}},900000)}
+function stopCRec(){crAuto=false;clearTimeout(crT);try{crRec&&crRec.state==='recording'&&crRec.stop()}catch(e){}}
+addEventListener('beforeunload',e=>{if(crAuto){e.preventDefault();e.returnValue=''}});
 
 /* --- 控制台收到的直播画面：每3秒一段独立视频，用于精彩回放 --- */
 function newSeg(st){
-  const r=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:1000000}),parts=[],start=now();
+  const r=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:2500000}),parts=[],start=now();
   r.ondataavailable=e=>e.data.size&&parts.push(e.data);
   r.onstop=()=>{const b=new Blob(parts,{type:mime});if(b.size>0)segs.push({start,end:now(),blob:b});prune()};
   r.start();return r;
@@ -484,16 +497,17 @@ function newSeg(st){
 const rc=document.createElement('canvas'),rcx=rc.getContext('2d');rc.width=1280;rc.height=720;
 const pickC=()=>['video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm','video/mp4;codecs=avc1','video/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
 let rstream=null;
+function syncAudio(ms){if(!rstream)return;const cur=rstream.getAudioTracks(),nw=ms.getAudioTracks();if(nw.length&&(cur.length!==nw.length||cur[0]!==nw[0])){cur.forEach(t=>rstream.removeTrack(t));nw.forEach(t=>rstream.addTrack(t))}}
 function startSegs(){
   if(!window.MediaRecorder||!rc.captureStream){toast('此浏览器不支持录制回放');return}
   if(rstream)return;
-  setInterval(()=>{const v=$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}},1000/15);
-  rstream=rc.captureStream(15);mime=pickC();segRec=newSeg(rstream);
+  setInterval(()=>{const v=$('#mv');if(v.videoWidth&&v.readyState>=2)rcx.drawImage(v,0,0,1280,720);else{rcx.fillStyle='#000';rcx.fillRect(0,0,1280,720)}board(rcx)},1000/30);
+  rstream=rc.captureStream(30);mime=pickC();segRec=newSeg(rstream);
   segTimer=setInterval(()=>{const o=segRec;segRec=newSeg(rstream);try{o.stop()}catch(e){}},3000);
 }
 function bufSt(){const w=Object.values(vpcs).filter(x=>x.pc.connectionState==='connected').length;$('#cw').textContent=w?'👁 '+w+' 位观众':'';const n=now(),a=segs.length?Math.round(n-segs[0].start):0;$('#bufst').textContent=`回放缓冲：${segs.length} 段，约 ${a} 秒${connected()?'':'（未连线）'}`}
 const win=h=>[h.t-h.pre,h.t+h.post];
-function prune(){const n=now();segs=segs.filter(s=>s.end>n-30)}
+function prune(){const n=now();segs=segs.filter(s=>s.end>n-40||H.some(h=>s.end>h.t-h.pre&&s.start<h.t+h.post))}
 function addClip(k,type,auto){
   if(auto&&!$('#autoc').checked)return;
   const[pre,post]=$('#win').value.split(',').map(Number);
@@ -522,18 +536,7 @@ function renderH(){
 function delId(id){H=H.filter(h=>h.id!=id);renderH()}
 const clipOf=h=>{const[a,b]=win(h);return segs.filter(s=>s.end>a&&s.start<b).sort((x,y)=>x.start-y.start)};
 let lastH=null;
-async function playH(h,cb){
-  lastH=h;
-  const have=h.blobs&&h.blobs.length,stale=h.partial&&now()>h.t+h.post+4;
-  if(!have||stale){
-    if(!connected()){if(have)return playBlobs(h.blobs,h.trim,cb);return localPlay(h,cb)}
-    toast('正在从摄像机取回片段…');
-    const ok=await fetchClip(h);
-    if(!ok&&!(h.blobs&&h.blobs.length)){toast('摄像机缓冲里没有这段画面，改用控制台缓冲');return localPlay(h,cb)}
-    if(ok&&h.id){h.st='ok';renderH()}
-  }
-  playBlobs(h.blobs,h.trim,cb);
-}
+async function playH(h,cb){lastH=h;localPlay(h,cb)}
 /* 精确截取：从事件前 pre 秒开始，到事件后 post 秒结束（片段按3秒拼接，开头用跳转、结尾按时间停止） */
 function playBlobs(bl,tr,cb){
   const v=$('#rv'),urls=bl.map(b=>URL.createObjectURL(b));let i=0,fin=false;
@@ -550,7 +553,7 @@ function playBlobs(bl,tr,cb){
 function localPlay(h,cb){
   const c=clipOf(h);
   if(!c.length){toast(`缓冲里没有这段时间的画面（现有${segs.length}段）。${connected()?'请确认直播画面在动，几秒后再试':'尚未连线'}`);cb&&setTimeout(cb,300);return}
-  playBlobs(c.map(s=>s.blob),null,cb);
+  {const[a,b]=win(h),lo=Math.max(a,c[0].start),hi=Math.min(b,c[c.length-1].end);let t=0;const cum=c.map(x=>{const y=t;t+=Math.max(0,x.end-x.start);return y});playBlobs(c.map(x=>x.blob),{off:Math.max(0,a-c[0].start),dur:Math.max(1,hi-lo),cum},cb)}
   if(h.t+h.post>now())toast('后段画面还在录，稍后再播可看到完整片段');
 }
 const playId=id=>{$('#rvt').textContent='';playH(H.find(h=>h.id==id))};
